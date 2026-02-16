@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: ${SERVER_PORT:8083}
 
 spring:
   application:
@@ -9,13 +9,13 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/digitalpaper
+          issuer-uri: ${KEYCLOAK_URL:http://localhost:8080}/realms/${KEYCLOAK_REALM:digitalpaper}
           jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/digitalpaper
-    username: postgres
-    password: admin
+    url: jdbc:postgresql://${DATABASE_URL:localhost:5432}/${DATABASE_NAME:digitalpaper}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:admin}
     hikari:
       connection-timeout: 20000
       maximum-pool-size: 10
