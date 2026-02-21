@@ -36,6 +36,13 @@ dependencies {
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
 
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+
+    implementation("com.google.protobuf:protobuf-java:4.30.2")
+    implementation("com.google.protobuf:protobuf-kotlin:4.30.2")
+    implementation("com.google.code.gson:gson:2.10.1")
+
     implementation("org.flywaydb:flyway-core")
 
     implementation("org.postgresql:postgresql")
