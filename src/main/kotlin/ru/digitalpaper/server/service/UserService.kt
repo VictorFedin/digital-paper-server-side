@@ -12,7 +12,9 @@ import ru.digitalpaper.server.util.common.RequestSatellites
 import ru.digitalpaper.server.util.converter.domain.UserConverter
 
 @Service
-class UserService(private val userRepo: UserRepo) {
+class UserService(
+    private val userRepo: UserRepo
+) {
 
     companion object {
         private val logger: Logger = LoggerFactory.getLogger("grayLog")

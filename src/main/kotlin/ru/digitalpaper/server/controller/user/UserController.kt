@@ -12,6 +12,7 @@ import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.service.UserService
 import ru.digitalpaper.server.util.common.RequestSatellites
+import ru.digitalpaper.server.util.log.ServerLogUtil
 
 @RestController
 @RequestMapping(value = ["/api/v1/user"])
@@ -25,15 +26,22 @@ class UserController(
     )
     @GetMapping(value = ["/profile"])
     fun getUserProfile(
-        @AuthenticationPrincipal user: UserPayload,
+        @AuthenticationPrincipal payload: UserPayload,
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
 
-        logger.info("")
+        logger.info(
+            ServerLogUtil.info(
+                "UserController.getUserProfile",
+                traceId.toString(),
+                "Enter",
+                Pair("payload", payload)
+            )
+        )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            userService.getUserProfile(user, rs)
+            userService.getUserProfile(payload, rs)
         }
     }
 }
