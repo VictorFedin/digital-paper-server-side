@@ -73,7 +73,25 @@ object Utils {
         }
     }
 
-    fun logToJson(obj: Any): String {
+    fun logToJson(
+        obj: Any
+    ): String {
         return gson.toJson(obj)
+    }
+
+    fun safePage(
+        page: Int
+    ): Int {
+        return (page - 1).coerceAtLeast(0)
+    }
+
+    fun safeSize(
+        size: Int
+    ): Int {
+        return when {
+            size <= 0 -> 10
+            size > 100 -> 100
+            else -> size
+        }
     }
 }

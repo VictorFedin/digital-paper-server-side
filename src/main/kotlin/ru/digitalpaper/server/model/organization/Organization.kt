@@ -12,7 +12,6 @@ import ru.digitalpaper.server.model.organization.holder.Industry
 import ru.digitalpaper.server.model.organization.holder.ModerationStatus
 import ru.digitalpaper.server.model.user.User
 import ru.digitalpaper.server.model.user.holder.UserRole
-import java.util.UUID
 
 @Entity
 @Table(name = "organizations")
@@ -36,9 +35,6 @@ class Organization(
     @Enumerated(value = EnumType.STRING)
     @Column(name = "status")
     var status: ModerationStatus = ModerationStatus.NEW,
-
-    @Column(name = "created_by")
-    var createdBy: UUID? = null,
 
     @OneToMany(mappedBy = "organization", cascade = [CascadeType.ALL], orphanRemoval = true)
     var users: MutableSet<UserOrganization> = mutableSetOf()

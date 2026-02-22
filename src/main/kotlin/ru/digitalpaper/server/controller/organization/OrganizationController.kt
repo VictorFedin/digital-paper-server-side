@@ -19,6 +19,7 @@ import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.service.OrganizationService
 import ru.digitalpaper.server.util.common.RequestSatellites
+import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.util.UUID
 
 @RestController
@@ -59,10 +60,20 @@ class OrganizationController(
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
 
-        logger.info("")
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.getMyOrganizationsList",
+                traceId.toString(),
+                "Enter",
+                mapOf(
+                    "page" to page.toString(),
+                    "size" to size.toString()
+                )
+            )
+        )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            Response() // TODO
+            organizationService.getMyOrganizationsList(payload, page, size, rs)
         }
     }
 
@@ -77,8 +88,6 @@ class OrganizationController(
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
-
-        println(addOrganizationRequest)
 
         logger.info("")
 

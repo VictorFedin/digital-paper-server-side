@@ -8,7 +8,9 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.common.ErrorResponse
+import ru.digitalpaper.server.exception.CustomException
 import ru.digitalpaper.server.util.common.RequestSatellites
+import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.util.UUID
 
 open class CommonController {
@@ -35,13 +37,40 @@ open class CommonController {
 
         val result = try {
             doIt.invoke(requestSatellites)
+        } catch (e: CustomException) {
+            logger.error(
+                ServerLogUtil.error(
+                    "CommonController.handleRequest",
+                    traceId.toString(),
+                    "ERROR on response: ${e.message}",
+                    e
+                )
+            )
+            ErrorResponse(
+                code = e.code,
+                message = e.message ?: "Непредвиденная ошибка",
+                reason = e.message ?: "Непредвиденная ошибка",
+                errors = emptyMap()
+            )
         } catch (e: Exception) {
+            logger.error(
+                ServerLogUtil.error(
+                    "CommonController.handleRequest",
+                    traceId.toString(),
+                    "ERROR on response: ${e.message}",
+                    e
+                )
+            )
             ErrorResponse(
                 code = HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                message = e.message ?: "Unknown",
-                reason = e.message ?: "Unknown",
+                message = e.message ?: "Непредвиденная ошибка",
+                reason = e.message ?: "Ошибка сервера",
                 mapOf()
             )
+        }
+
+        if (result is ErrorResponse) {
+            response.status = result.code
         }
 
         response.addHeader("X-Trace-Id", traceId.toString())
