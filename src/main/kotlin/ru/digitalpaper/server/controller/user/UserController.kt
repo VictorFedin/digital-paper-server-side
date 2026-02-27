@@ -3,10 +3,14 @@ package ru.digitalpaper.server.controller.user
 import io.swagger.v3.oas.annotations.Operation
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.http.MediaType
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.controller.base.CommonController
 import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.user.UserPayload
@@ -42,6 +46,31 @@ class UserController(
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
             userService.getUserProfile(payload, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Сохранить аватар пользователя",
+        description = "Вовзращает аватар текущего пользователя"
+    )
+    @PostMapping(value = ["/avatar"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun saveUserAvatar(
+        @AuthenticationPrincipal payload: UserPayload,
+        @RequestBody file: MultipartFile,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "UserController.saveUserAvatar",
+                traceId.toString(),
+                "Enter"
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            userService.saveUserAvatar(file, payload, rs)
         }
     }
 }

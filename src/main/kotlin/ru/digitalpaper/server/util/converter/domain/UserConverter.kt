@@ -1,7 +1,9 @@
 package ru.digitalpaper.server.util.converter.domain
 
+import ru.digitalpaper.server.dto.response.user.AvatarResponse
 import ru.digitalpaper.server.dto.response.user.UserProfileResponse
 import ru.digitalpaper.server.model.user.User
+import ru.digitalpaper.server.model.user.holder.Avatar
 
 class UserConverter {
 
@@ -16,6 +18,16 @@ class UserConverter {
                 lastName = user.lastName,
                 createdAt = user.createdAt,
                 updatedAt = user.updatedAt
+            )
+
+        fun convert(avatar: Avatar): AvatarResponse =
+            AvatarResponse(
+                id = avatar.id,
+                link = avatar.link,
+                fileName = avatar.fileName,
+                fileSize = avatar.fileSize,
+                contentType = avatar.contentType,
+                createdAt = avatar.createdAt
             )
     }
 }

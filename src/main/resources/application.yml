@@ -41,3 +41,12 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
+
+s3:
+  config:
+    endpoint: ${S3_ENDPOINT:http://127.0.0.1:9000}
+    accessKey: ${S3_ACCESS_KEY:minioadmin}
+    secretKey: ${S3_SECRET_KEY:minioadmin}
+    bucketName: ${S3_BUCKET_NAME:digitalpaper}
+    region: ${S3_REGION:}
+    usePathStyle: ${S3_USE_PATH_STYLE:}

@@ -5,8 +5,11 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import ru.digitalpaper.server.model.base.UniqueEntity
 import ru.digitalpaper.server.model.organization.UserOrganization
+import ru.digitalpaper.server.model.user.holder.Avatar
 
 @Entity
 @Table(name = "users")
@@ -22,6 +25,10 @@ class User(
 
     @Column(name = "last_name", length = 100)
     var lastName: String = "",
+
+    @JdbcTypeCode(value = SqlTypes.JSON)
+    @Column(name = "avatar")
+    var avatar: Avatar? = null,
 
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
     var organizations: MutableSet<UserOrganization> = mutableSetOf()
