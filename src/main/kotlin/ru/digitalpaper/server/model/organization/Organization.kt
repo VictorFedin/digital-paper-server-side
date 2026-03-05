@@ -5,16 +5,24 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.Index
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import ru.digitalpaper.server.model.base.UniqueEntity
+import ru.digitalpaper.server.model.department.Department
 import ru.digitalpaper.server.model.organization.holder.Industry
 import ru.digitalpaper.server.model.organization.holder.ModerationStatus
 import ru.digitalpaper.server.model.user.User
 import ru.digitalpaper.server.model.user.holder.UserRole
 
 @Entity
-@Table(name = "organizations")
+@Table(
+    name = "organizations",
+    indexes = [
+        Index(name = "idx_organizations_status", columnList = "status"),
+        Index(name = "idx_organizations_industry", columnList = "industry")
+    ]
+)
 class Organization(
     @Column(name = "name", nullable = false, length = 100)
     var name: String = "",
@@ -29,20 +37,27 @@ class Organization(
     var email: String? = null,
 
     @Enumerated(value = EnumType.STRING)
-    @Column(name = "industry")
+    @Column(name = "industry", nullable = false)
     var industry: Industry = Industry.NONE,
 
     @Enumerated(value = EnumType.STRING)
-    @Column(name = "status")
+    @Column(name = "status", nullable = false)
     var status: ModerationStatus = ModerationStatus.NEW,
 
     @OneToMany(mappedBy = "organization", cascade = [CascadeType.ALL], orphanRemoval = true)
-    var users: MutableSet<UserOrganization> = mutableSetOf()
+    var users: MutableSet<UserOrganization> = mutableSetOf(),
+
+    @OneToMany(mappedBy = "organization", cascade = [CascadeType.ALL], orphanRemoval = true)
+    var departments: MutableSet<Department> = mutableSetOf()
 ) : UniqueEntity() {
 
     fun addMember(user: User, role: UserRole) {
         val link = UserOrganization(user = user, organization = this, role = role)
         users.add(link)
         user.organizations.add(link)
+    }
+
+    fun addDepartment(department: Department) {
+        departments.add(department)
     }
 }
