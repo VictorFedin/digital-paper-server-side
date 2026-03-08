@@ -8,6 +8,7 @@ import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
+import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
 import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.common.PagedResponse
@@ -159,7 +160,7 @@ class OrganizationService(
         val membership = userOrganizationRepo.findMembership(actor.id, id)
             ?: throw ForbiddenException("Нет доступа к организации")
 
-        if (!membership.role.canManageMembers())
+        if (!membership.role.canManageOrganization())
             throw ForbiddenException("Недостаточно прав")
 
         val userToAdd = userRepo.getUserByEmail(request.email)
@@ -174,5 +175,80 @@ class OrganizationService(
         organizationRepo.save(organization)
 
         return MessageResponse("Пользователь добавлен в организацию '${organization.name}'")
+    }
+
+    @Transactional
+    fun updateOrganization(
+        id: UUID,
+        request: UpdateOrganizationRequest,
+        payload: UserPayload,
+        rs: RequestSatellites
+    ): OrganizationResponse {
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationService.updateOrganization",
+                rs.traceId,
+                "Enter",
+                Pair("id", "$id"),
+                Pair("request", "$request")
+            )
+        )
+
+        val actor = userRepo.getUserBySub(payload.sub)
+            ?: throw NotFoundException("Пользователь не найден")
+
+        val membership = userOrganizationRepo.findMembership(actor.id, id)
+            ?: throw ForbiddenException("Нет доступа к организации")
+
+        if (!membership.role.canManageOrganization())
+            throw ForbiddenException("Недостаточно прав")
+
+        val organization = membership.organization
+
+        if (!organization.canBeEdited())
+            throw BadRequestException("Статус модерации - '${organization.status}'. В редактировании отказано")
+
+        organization.updateDetails(
+            name = request.name,
+            fullName = request.fullName,
+            description = request.description,
+            phone = request.phone,
+            regNumber = request.regNumber,
+            identificationNumber = request.identificationNumber,
+            regReasonCode = request.regReasonCode,
+            address = request.address,
+            type = request.type
+        )
+
+        return OrganizationConverter.convert(organization)
+    }
+
+    @Transactional
+    fun deleteOrganization(
+        id: UUID,
+        payload: UserPayload,
+        rs: RequestSatellites
+    ): MessageResponse {
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationService.deleteOrganization",
+                rs.traceId,
+                "Enter",
+                Pair("id", "$id"),
+            )
+        )
+
+        val actor = userRepo.getUserBySub(payload.sub)
+            ?: throw NotFoundException("Пользователь не найден")
+
+        val membership = userOrganizationRepo.findMembership(actor.id, id)
+            ?: throw ForbiddenException("Нет доступа к организации")
+
+        if (!membership.role.canManageOrganization())
+            throw ForbiddenException("Недостаточно прав")
+
+        organizationRepo.delete(membership.organization)
+
+        return MessageResponse("Организация удалена")
     }
 }

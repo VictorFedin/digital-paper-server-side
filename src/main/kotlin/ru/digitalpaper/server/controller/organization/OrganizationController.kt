@@ -6,9 +6,11 @@ import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController
 import ru.digitalpaper.server.controller.base.CommonController
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
+import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
 import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.service.OrganizationService
@@ -108,6 +111,60 @@ class OrganizationController(
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
             organizationService.addOrganization(addOrganizationRequest, payload, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Обновить детали организации",
+        description = "Возвращает детали организации"
+    )
+    @PutMapping(value = ["/{id}"])
+    fun updateOrganization(
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable id: UUID,
+        @Valid @RequestBody updateOrganizationRequest: UpdateOrganizationRequest,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.updateOrganization",
+                traceId.toString(),
+                "Enter",
+                Pair("id", "$id"),
+                Pair("request", "$updateOrganizationRequest")
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            organizationService.updateOrganization(id, updateOrganizationRequest, payload, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Удалить организацию",
+        description = "Возращает результат удаления организации"
+    )
+    @DeleteMapping(value = ["/{id}"])
+    fun deleteOrganization(
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable id: UUID,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.deleteOrganization",
+                traceId.toString(),
+                "Enter",
+                Pair("id", "$id")
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            organizationService.deleteOrganization(id, payload, rs)
         }
     }
 

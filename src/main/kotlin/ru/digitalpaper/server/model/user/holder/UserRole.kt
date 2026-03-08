@@ -6,7 +6,7 @@ enum class UserRole {
     ADMIN,
     LAWYER;
 
-    fun canManageMembers(): Boolean =
+    fun canManageOrganization(): Boolean =
         when (this) {
             OWNER, ADMIN -> true
             EMPLOYEE, LAWYER -> false

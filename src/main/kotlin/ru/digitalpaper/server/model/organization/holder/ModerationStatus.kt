@@ -2,7 +2,8 @@ package ru.digitalpaper.server.model.organization.holder
 
 enum class ModerationStatus {
     NEW,
-    PROCESSING,
+    PENDING_REVIEW,
+    REVISION_NEEDED,
     APPROVED,
-    DECLINED
+    REJECTED
 }
