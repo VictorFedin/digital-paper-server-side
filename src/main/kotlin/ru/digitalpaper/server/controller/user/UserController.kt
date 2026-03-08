@@ -25,8 +25,8 @@ class UserController(
 ) : CommonController() {
 
     @Operation(
-        summary = "Get user profile",
-        description = "Returns user profile by token"
+        summary = "Получить профиль пользователя",
+        description = "Возвращает профиль текущего пользователя"
     )
     @GetMapping(value = ["/profile"])
     fun getUserProfile(

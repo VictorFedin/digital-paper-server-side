@@ -7,11 +7,15 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
+import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
 import ru.digitalpaper.server.dto.response.Response
+import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.common.PagedResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.exception.BadRequestException
+import ru.digitalpaper.server.exception.ForbiddenException
 import ru.digitalpaper.server.exception.NotFoundException
 import ru.digitalpaper.server.model.organization.Organization
 import ru.digitalpaper.server.model.organization.holder.ModerationStatus
@@ -69,6 +73,7 @@ class OrganizationService(
         return OrganizationConverter.convert(organization)
     }
 
+    @Transactional
     fun getOrganizationDetails(
         id: UUID,
         rs: RequestSatellites
@@ -88,6 +93,7 @@ class OrganizationService(
         return OrganizationConverter.convert(organization)
     }
 
+    @Transactional
     fun getMyOrganizationsList(
         payload: UserPayload,
         page: Int,
@@ -128,5 +134,45 @@ class OrganizationService(
             ),
             list = orgPage.content.map { OrganizationConverter.convert(it) }.toList()
         )
+    }
+
+    @Transactional
+    fun addUserToOrganization(
+        payload: UserPayload,
+        id: UUID,
+        request: AddUserToOrganizationRequest,
+        rs: RequestSatellites
+    ): MessageResponse {
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationService.addUserToOrganization",
+                rs.traceId,
+                "Enter",
+                Pair("id", "$id"),
+                Pair("request", "$request")
+            )
+        )
+
+        val actor = userRepo.getUserBySub(payload.sub)
+            ?: throw NotFoundException("Пользователь не найден")
+
+        val membership = userOrganizationRepo.findMembership(actor.id, id)
+            ?: throw ForbiddenException("Нет доступа к организации")
+
+        if (!membership.role.canManageMembers())
+            throw ForbiddenException("Недостаточно прав")
+
+        val userToAdd = userRepo.getUserByEmail(request.email)
+            ?: throw NotFoundException("Пользователь с email = '${request.email}' не найден")
+
+        if (userOrganizationRepo.existUserInOrganization(userToAdd.id, membership.organization.id))
+            throw BadRequestException("Пользователь уже состоит в организации")
+
+        val organization = membership.organization
+
+        organization.addMember(user = userToAdd, role = request.role)
+        organizationRepo.save(organization)
+
+        return MessageResponse("Пользователь добавлен в организацию '${organization.name}'")
     }
 }

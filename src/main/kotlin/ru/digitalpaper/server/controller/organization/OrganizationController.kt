@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import ru.digitalpaper.server.controller.base.CommonController
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
+import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
 import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.service.OrganizationService
@@ -23,15 +24,15 @@ import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.util.UUID
 
 @RestController
-@RequestMapping(value = ["/api/v1/organization"])
+@RequestMapping(value = ["/api/v1/organizations"])
 @Validated
 class OrganizationController(
     private val organizationService: OrganizationService
 ) : CommonController() {
 
     @Operation(
-        summary = "Get organization details",
-        description = "Returns organization details by id"
+        summary = "Получить детали организации",
+        description = "Возвращает детали организации по айди"
     )
     @GetMapping(value = ["/{id}"])
     fun getOrganizationDetails(
@@ -40,7 +41,14 @@ class OrganizationController(
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
 
-        logger.info("")
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.getOrganizationDetails",
+                traceId.toString(),
+                "Enter",
+                Pair("id", "$id")
+            )
+        )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
             organizationService.getOrganizationDetails(id, rs)
@@ -48,8 +56,8 @@ class OrganizationController(
     }
 
     @Operation(
-        summary = "Get user's organization list",
-        description = "Returns user's organization list"
+        summary = "Получить список организаций пользователя",
+        description = "Возвращает список организаций текущего пользователя"
     )
     @GetMapping(value = ["/my"])
     fun getMyOrganizationsList(
@@ -78,8 +86,8 @@ class OrganizationController(
     }
 
     @Operation(
-        summary = "Create new organization",
-        description = "Returns created organization"
+        summary = "Создать новую организацию",
+        description = "Возвращает детали организации"
     )
     @PostMapping(value = [""])
     fun addOrganization(
@@ -89,10 +97,44 @@ class OrganizationController(
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
 
-        logger.info("")
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.addOrganization",
+                traceId.toString(),
+                "Enter",
+                Pair("request", addOrganizationRequest)
+            )
+        )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
             organizationService.addOrganization(addOrganizationRequest, payload, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Добавить пользователя к организации",
+        description = "Возвращает результат добавления пользователя"
+    )
+    @PostMapping(value = ["/{id}/users/add"])
+    fun addUserToOrganization(
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable id: UUID,
+        @Valid @RequestBody addUserToOrganizationRequest: AddUserToOrganizationRequest,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.addUserToOrganization",
+                traceId.toString(),
+                "Enter",
+                Pair("request", addUserToOrganizationRequest)
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            organizationService.addUserToOrganization(payload, id, addUserToOrganizationRequest, rs)
         }
     }
 }

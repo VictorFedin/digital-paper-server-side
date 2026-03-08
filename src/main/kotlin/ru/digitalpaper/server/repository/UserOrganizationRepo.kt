@@ -28,4 +28,22 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID> {
         userId: UUID,
         pageable: Pageable
     ): Page<Organization>
+
+    @Query(
+        value = """
+            SELECT uo
+            FROM UserOrganization uo
+            WHERE uo.user.id = :userId AND uo.organization.id = :organizationId
+        """
+    )
+    fun findMembership(userId: UUID, organizationId: UUID): UserOrganization?
+
+    @Query(
+        value = """
+            SELECT (count(uo) > 0)
+            FROM UserOrganization uo
+            WHERE uo.user.id = :userId AND uo.organization.id = :organizationId
+        """
+    )
+    fun existUserInOrganization(userId: UUID, organizationId: UUID): Boolean
 }

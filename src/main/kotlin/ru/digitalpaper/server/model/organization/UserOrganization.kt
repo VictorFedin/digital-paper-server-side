@@ -32,11 +32,11 @@ import ru.digitalpaper.server.model.user.holder.UserRole
 class UserOrganization(
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, updatable = false)
-    var user: User? = null,
+    var user: User,
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false, updatable = false)
-    var organization: Organization? = null,
+    var organization: Organization,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)

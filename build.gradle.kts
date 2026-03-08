@@ -1,8 +1,13 @@
 plugins {
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
+    kotlin("plugin.jpa") version "1.9.22"
     id("org.springframework.boot") version "4.0.2"
     id("io.spring.dependency-management") version "1.1.7"
+}
+
+noArg {
+    annotation("jakarta.persistence.Entity")
 }
 
 group = "ru"
