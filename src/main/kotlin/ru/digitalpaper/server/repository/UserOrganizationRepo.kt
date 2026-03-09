@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import ru.digitalpaper.server.model.organization.Organization
 import ru.digitalpaper.server.model.organization.UserOrganization
+import ru.digitalpaper.server.model.user.User
 import java.util.UUID
 
 @Repository
@@ -46,4 +47,21 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID> {
         """
     )
     fun existUserInOrganization(userId: UUID, organizationId: UUID): Boolean
+
+    @Query(
+        value = """
+            SELECT uo.user
+            FROM UserOrganization uo
+            WHERE uo.organization.id = :organizationId
+        """,
+        countQuery = """
+            SELECT count(uo)
+            FROM UserOrganization uo
+            WHERE uo.organization.id = :organizationId
+        """
+    )
+    fun getUsersByOrganizationId(
+        organizationId: UUID,
+        pageable: Pageable
+    ): Page<User>
 }

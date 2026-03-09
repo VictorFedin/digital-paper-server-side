@@ -9,12 +9,12 @@ import org.springframework.stereotype.Service
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
-import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.common.PagedResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.dto.response.user.UsersPagedListResponse
 import ru.digitalpaper.server.exception.BadRequestException
 import ru.digitalpaper.server.exception.ForbiddenException
 import ru.digitalpaper.server.exception.NotFoundException
@@ -26,7 +26,6 @@ import ru.digitalpaper.server.repository.UserOrganizationRepo
 import ru.digitalpaper.server.repository.UserRepo
 import ru.digitalpaper.server.util.Utils
 import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.converter.domain.OrganizationConverter
 import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.util.UUID
 
@@ -71,12 +70,13 @@ class OrganizationService(
 
         val organization = organizationRepo.save(newOrganization)
 
-        return OrganizationConverter.convert(organization)
+        return organization.toResponse()
     }
 
     @Transactional
     fun getOrganizationDetails(
         id: UUID,
+        payload: UserPayload,
         rs: RequestSatellites
     ): OrganizationResponse {
         logger.info(
@@ -88,10 +88,13 @@ class OrganizationService(
             )
         )
 
-        val organization = organizationRepo.getOrganizationById(id)
-            ?: throw NotFoundException("Организация не найдена")
+        val actor = userRepo.getUserBySub(payload.sub)
+            ?: throw NotFoundException("Пользователь не найден")
 
-        return OrganizationConverter.convert(organization)
+        val membership = userOrganizationRepo.findMembership(actor.id, id)
+            ?: throw ForbiddenException("Нет доступа к организации")
+
+        return membership.organization.toResponse()
     }
 
     @Transactional
@@ -100,7 +103,7 @@ class OrganizationService(
         page: Int,
         size: Int,
         rs: RequestSatellites
-    ): Response {
+    ): OrganizationsPagedListResponse {
         logger.info(
             ServerLogUtil.info(
                 "OrganizationService.getMyOrganizationsList",
@@ -133,7 +136,7 @@ class OrganizationService(
                 sortField = sortField,
                 sortDirection = direction.name
             ),
-            list = orgPage.content.map { OrganizationConverter.convert(it) }.toList()
+            list = orgPage.content.map { it.toListItem() }.toList()
         )
     }
 
@@ -220,7 +223,7 @@ class OrganizationService(
             type = request.type
         )
 
-        return OrganizationConverter.convert(organization)
+        return organization.toResponse()
     }
 
     @Transactional
@@ -250,5 +253,47 @@ class OrganizationService(
         organizationRepo.delete(membership.organization)
 
         return MessageResponse("Организация удалена")
+    }
+
+    @Transactional
+    fun getOrganizationUsers(
+        id: UUID,
+        page: Int,
+        size: Int,
+        rs: RequestSatellites
+    ): UsersPagedListResponse {
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationService.getOrganizationUsers",
+                rs.traceId,
+                "Enter",
+                Pair("id", "$id"),
+                Pair("page", "$page"),
+                Pair("size", "$size"),
+            )
+        )
+
+        val pageNumber = Utils.safePage(page)
+        val pageSize = Utils.safeSize(size)
+        val direction = Sort.Direction.DESC
+        val sortField = DEFAULT_SORT_FIELD
+        val pageable = PageRequest.of(
+            pageNumber,
+            pageSize,
+            Sort.by(direction, sortField)
+        )
+
+        val usersPage = userOrganizationRepo.getUsersByOrganizationId(id, pageable)
+
+        return UsersPagedListResponse(
+            page = PagedResponse(
+                page = page,
+                size = size,
+                totalItems = usersPage.totalElements,
+                sortField = sortField,
+                sortDirection = direction.name
+            ),
+            list = usersPage.content.map { it.toListItem() }.toList()
+        )
     }
 }

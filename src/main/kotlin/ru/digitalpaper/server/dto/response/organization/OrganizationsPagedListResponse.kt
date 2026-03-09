@@ -5,5 +5,5 @@ import ru.digitalpaper.server.dto.response.common.PagedResponse
 
 data class OrganizationsPagedListResponse(
     val page: PagedResponse,
-    val list: List<OrganizationResponse>
+    val list: List<OrganizationListItem>
 ) : Response()

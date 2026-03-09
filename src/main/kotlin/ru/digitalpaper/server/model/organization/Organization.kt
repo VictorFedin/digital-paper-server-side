@@ -10,6 +10,8 @@ import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
+import ru.digitalpaper.server.dto.response.organization.OrganizationListItem
+import ru.digitalpaper.server.dto.response.organization.OrganizationResponse
 import ru.digitalpaper.server.model.base.UniqueEntity
 import ru.digitalpaper.server.model.department.Department
 import ru.digitalpaper.server.model.organization.holder.Industry
@@ -115,4 +117,25 @@ class Organization(
             ModerationStatus.NEW, ModerationStatus.REVISION_NEEDED -> true
             ModerationStatus.PENDING_REVIEW, ModerationStatus.APPROVED, ModerationStatus.REJECTED -> false
         }
+
+    fun toResponse(): OrganizationResponse =
+        OrganizationResponse(
+            id = id,
+            name = name,
+            description = description,
+            phone = phone,
+            email = email,
+            industry = industry,
+            status = status,
+            createdAt = createdAt,
+            updatedAt = updatedAt
+        )
+
+    fun toListItem(): OrganizationListItem =
+        OrganizationListItem(
+            name = name,
+            avatar = avatar,
+            type = type,
+            createdAt = createdAt,
+        )
 }

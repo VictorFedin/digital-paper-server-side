@@ -21,5 +21,3 @@ ALTER TABLE organizations
 
 ALTER TABLE organizations
     ALTER COLUMN type SET NOT NULL;
-
-CREATE INDEX idx_users_email ON users (email);

@@ -1,6 +1,10 @@
 package ru.digitalpaper.server.controller.organization
 
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
@@ -20,7 +24,12 @@ import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
 import ru.digitalpaper.server.dto.response.Response
+import ru.digitalpaper.server.dto.response.common.ErrorResponse
+import ru.digitalpaper.server.dto.response.common.MessageResponse
+import ru.digitalpaper.server.dto.response.organization.OrganizationResponse
+import ru.digitalpaper.server.dto.response.organization.OrganizationsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.dto.response.user.UsersPagedListResponse
 import ru.digitalpaper.server.service.OrganizationService
 import ru.digitalpaper.server.util.common.RequestSatellites
 import ru.digitalpaper.server.util.log.ServerLogUtil
@@ -37,8 +46,29 @@ class OrganizationController(
         summary = "Получить детали организации",
         description = "Возвращает детали организации по айди"
     )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = OrganizationResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
     @GetMapping(value = ["/{id}"])
     fun getOrganizationDetails(
+        @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {
@@ -54,13 +84,33 @@ class OrganizationController(
         )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.getOrganizationDetails(id, rs)
+            organizationService.getOrganizationDetails(id, payload, rs)
         }
     }
 
     @Operation(
         summary = "Получить список организаций пользователя",
         description = "Возвращает список организаций текущего пользователя"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = OrganizationsPagedListResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
     )
     @GetMapping(value = ["/my"])
     fun getMyOrganizationsList(
@@ -92,6 +142,26 @@ class OrganizationController(
         summary = "Создать новую организацию",
         description = "Возвращает детали организации"
     )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = OrganizationResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
     @PostMapping(value = [""])
     fun addOrganization(
         @AuthenticationPrincipal payload: UserPayload,
@@ -117,6 +187,26 @@ class OrganizationController(
     @Operation(
         summary = "Обновить детали организации",
         description = "Возвращает детали организации"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = OrganizationResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
     )
     @PutMapping(value = ["/{id}"])
     fun updateOrganization(
@@ -146,6 +236,26 @@ class OrganizationController(
         summary = "Удалить организацию",
         description = "Возращает результат удаления организации"
     )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = MessageResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
     @DeleteMapping(value = ["/{id}"])
     fun deleteOrganization(
         @AuthenticationPrincipal payload: UserPayload,
@@ -172,6 +282,26 @@ class OrganizationController(
         summary = "Добавить пользователя к организации",
         description = "Возвращает результат добавления пользователя"
     )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = MessageResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
     @PostMapping(value = ["/{id}/users/add"])
     fun addUserToOrganization(
         @AuthenticationPrincipal payload: UserPayload,
@@ -192,6 +322,53 @@ class OrganizationController(
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
             organizationService.addUserToOrganization(payload, id, addUserToOrganizationRequest, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Получить список сотрудников организации",
+        description = "Возвращает список пользователей организации"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = UsersPagedListResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
+    @GetMapping(value = ["/{id}/users"])
+    fun getOrganizationUsers(
+        @PathVariable id: UUID,
+        @RequestParam page: Int = 1,
+        @RequestParam size: Int = 10,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.getOrganizationUsers",
+                traceId.toString(),
+                "Enter",
+                Pair("id", "$id")
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            organizationService.getOrganizationUsers(id, page, size, rs)
         }
     }
 }

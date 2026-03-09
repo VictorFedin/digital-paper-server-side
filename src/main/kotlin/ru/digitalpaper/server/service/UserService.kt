@@ -5,7 +5,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
-import ru.digitalpaper.server.dto.response.Response
+import ru.digitalpaper.server.dto.response.user.AvatarResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.dto.response.user.UserProfileResponse
 import ru.digitalpaper.server.exception.InternalErrorException
@@ -14,7 +14,6 @@ import ru.digitalpaper.server.model.user.User
 import ru.digitalpaper.server.model.user.holder.Avatar
 import ru.digitalpaper.server.repository.UserRepo
 import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.converter.domain.UserConverter
 import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -45,7 +44,7 @@ class UserService(
 
         val user = userRepo.getUserBySub(payload.sub)
         return if (user != null) {
-            UserConverter.convert(user)
+            user.toResponse()
         } else {
             logger.info(
                 ServerLogUtil.info(
@@ -64,7 +63,7 @@ class UserService(
         file: MultipartFile,
         payload: UserPayload,
         rs: RequestSatellites
-    ): Response {
+    ): AvatarResponse {
         logger.info(
             ServerLogUtil.info(
                 "UserService.saveUserAvatar",
@@ -111,7 +110,7 @@ class UserService(
         user.avatar = avatar
         userRepo.save(user)
 
-        return UserConverter.convert(avatar)
+        return avatar.toResponse()
     }
 
     private fun initiateUser(
@@ -135,6 +134,6 @@ class UserService(
 
         val finalUser = userRepo.save(user)
 
-        return UserConverter.convert(finalUser)
+        return finalUser.toResponse()
     }
 }

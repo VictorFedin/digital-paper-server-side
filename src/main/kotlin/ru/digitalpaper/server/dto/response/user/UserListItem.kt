@@ -4,7 +4,7 @@ import ru.digitalpaper.server.dto.response.Response
 import java.time.ZonedDateTime
 import java.util.UUID
 
-data class UserProfileResponse(
+data class UserListItem(
     val id: UUID,
     val email: String,
     val firstName: String,
