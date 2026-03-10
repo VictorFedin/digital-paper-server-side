@@ -9,6 +9,7 @@ import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import ru.digitalpaper.server.dto.response.document.DocumentListItem
 import ru.digitalpaper.server.model.base.UniqueEntity
 import ru.digitalpaper.server.model.document.holder.DocumentType
 import ru.digitalpaper.server.model.folder.Folder
@@ -46,4 +47,13 @@ class Document(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "folder_id")
     var folder: Folder? = null
-) : UniqueEntity()
+) : UniqueEntity() {
+
+    fun toListItem(): DocumentListItem =
+        DocumentListItem(
+            id = id,
+            name = name,
+            createdAt = createdAt,
+            updatedAt = updatedAt
+        )
+}

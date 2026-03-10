@@ -6,6 +6,4 @@ import ru.digitalpaper.server.model.organization.Organization
 import java.util.UUID
 
 @Repository
-interface OrganizationRepo : JpaRepository<Organization, UUID> {
-    fun getOrganizationById(id: UUID): Organization?
-}
+interface OrganizationRepo : JpaRepository<Organization, UUID>
