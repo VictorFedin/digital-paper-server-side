@@ -5,39 +5,22 @@ import io.minio.PutObjectArgs
 import io.minio.errors.MinioException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import ru.digitalpaper.server.config.properties.MinioProperties
 import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.io.ByteArrayInputStream
 import java.io.InputStream
-import java.util.UUID
+import java.util.*
 
 @Service
-class StorageService {
+class StorageService(
+    private val minioClient: MinioClient,
+    private val minioProperties: MinioProperties
+) {
 
     companion object {
         private val logger: Logger = LoggerFactory.getLogger("grayLog")
         private const val SEPARATOR = "/"
-    }
-
-    @Value($$"${s3.config.endpoint}")
-    private lateinit var endpoint: String
-
-    @Value($$"${s3.config.accessKey}")
-    private lateinit var accessKey: String
-
-    @Value($$"${s3.config.secretKey}")
-    private lateinit var secretKey: String
-
-    @Value($$"${s3.config.bucketName}")
-    private lateinit var bucketName: String
-
-
-    private fun getMinioClient(): MinioClient {
-        return MinioClient.builder()
-            .endpoint(endpoint)
-            .credentials(accessKey, secretKey)
-            .build()
     }
 
     fun saveFile(
@@ -66,9 +49,9 @@ class StorageService {
 
         try {
             bias = ByteArrayInputStream(content.readAllBytes())
-            getMinioClient().putObject(
+            minioClient.putObject(
                 PutObjectArgs.builder()
-                    .bucket(bucketName)
+                    .bucket(minioProperties.bucketName)
                     .`object`(result)
                     .stream(
                         bias,

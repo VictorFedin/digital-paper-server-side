@@ -37,6 +37,7 @@ services:
       - "8080:8080"
     volumes:
       - kc_data:/opt/keycloak/data
+      - ./keycloak-theme-for-kc-22-to-25.jar:/opt/keycloak/providers/keycloak-theme-for-kc-22-to-25.jar
     healthcheck:
       test: [ "CMD-SHELL", "curl -fsS http://localhost:8080/health/ready || exit 1" ]
       interval: 5s
@@ -62,6 +63,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog_digitalpaper
+    ports:
+      - "1025:1025"
+      - "8025:8025"
 
 volumes:
   kc_pg_data:

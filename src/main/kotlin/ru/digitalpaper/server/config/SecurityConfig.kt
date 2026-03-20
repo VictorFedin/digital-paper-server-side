@@ -6,8 +6,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -17,10 +15,14 @@ import ru.digitalpaper.server.util.converter.CustomJwtAuthenticationConverter
 @EnableMethodSecurity
 @EnableWebSecurity
 @Configuration
-class SecurityConfig {
+class SecurityConfig(
+    private val customJwtAuthenticationConverter: CustomJwtAuthenticationConverter
+) {
 
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun securityFilterChain(
+        http: HttpSecurity
+    ): SecurityFilterChain {
         http
             .csrf { it.disable() }
             .cors { }
@@ -52,23 +54,11 @@ class SecurityConfig {
             }
             .oauth2ResourceServer { oauth2 ->
                 oauth2.jwt { jwt ->
-                    jwt.jwtAuthenticationConverter(CustomJwtAuthenticationConverter())
+                    jwt.jwtAuthenticationConverter(customJwtAuthenticationConverter)
                 }
             }
 
         return http.build()
-    }
-
-    @Bean
-    fun jwtAuthenticationConverter(): JwtAuthenticationConverter {
-        val authoritiesConverter = JwtGrantedAuthoritiesConverter().apply {
-            setAuthorityPrefix("ROLE_")
-            setAuthoritiesClaimName("roles")
-        }
-
-        return JwtAuthenticationConverter().apply {
-            setJwtGrantedAuthoritiesConverter(authoritiesConverter)
-        }
     }
 
     @Bean

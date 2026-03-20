@@ -1,22 +1,21 @@
 package ru.digitalpaper.server.service
 
-import jakarta.transaction.Transactional
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.dto.response.user.AvatarResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.dto.response.user.UserProfileResponse
 import ru.digitalpaper.server.exception.InternalErrorException
 import ru.digitalpaper.server.exception.NotFoundException
-import ru.digitalpaper.server.model.user.User
 import ru.digitalpaper.server.model.user.holder.Avatar
 import ru.digitalpaper.server.repository.UserRepo
 import ru.digitalpaper.server.util.common.RequestSatellites
 import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.time.ZonedDateTime
-import java.util.UUID
+import java.util.*
 
 @Service
 class UserService(
@@ -29,7 +28,7 @@ class UserService(
         private const val AVATAR_BASE_DIR = "avatars/users"
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getUserProfile(
         payload: UserPayload,
         rs: RequestSatellites
@@ -42,20 +41,10 @@ class UserService(
             )
         )
 
-        val user = userRepo.getUserBySub(payload.sub)
-        return if (user != null) {
-            user.toResponse()
-        } else {
-            logger.info(
-                ServerLogUtil.info(
-                    "UserService.getUserProfile",
-                    rs.traceId,
-                    "User not found. User initialization started",
-                    mapOf("sub" to payload.sub)
-                )
-            )
-            initiateUser(payload, rs)
-        }
+        val user = userRepo.getUserById(payload.id)
+            ?: throw NotFoundException("Пользователь не найден")
+
+        return user.toResponse()
     }
 
     @Transactional
@@ -113,27 +102,4 @@ class UserService(
         return avatar.toResponse()
     }
 
-    private fun initiateUser(
-        payload: UserPayload,
-        rs: RequestSatellites
-    ): UserProfileResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "UserService.initiateUser",
-                rs.traceId,
-                "Enter"
-            )
-        )
-
-        val user = User(
-            sub = payload.sub,
-            email = payload.email,
-            firstName = payload.firstName,
-            lastName = payload.lastName
-        )
-
-        val finalUser = userRepo.save(user)
-
-        return finalUser.toResponse()
-    }
 }
