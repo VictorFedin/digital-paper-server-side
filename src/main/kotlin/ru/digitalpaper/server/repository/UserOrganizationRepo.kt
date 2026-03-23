@@ -64,4 +64,13 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID> {
         organizationId: UUID,
         pageable: Pageable
     ): Page<User>
+
+    @Query(
+        value = """
+            SELECT uo
+            FROM UserOrganization uo
+            WHERE uo.user.id = :id
+        """
+    )
+    fun getRelationByUserId(id: UUID): UserOrganization?
 }

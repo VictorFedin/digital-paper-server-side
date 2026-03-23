@@ -10,6 +10,7 @@ data class UserProfileResponse(
     val firstName: String,
     val lastName: String,
     val middleName: String,
+    val avatar: AvatarResponse? = null,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime
 ) : Response()

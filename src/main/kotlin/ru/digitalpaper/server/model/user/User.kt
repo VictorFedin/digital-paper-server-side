@@ -10,7 +10,6 @@ import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import ru.digitalpaper.server.dto.response.user.UserListItem
-import ru.digitalpaper.server.dto.response.user.UserProfileResponse
 import ru.digitalpaper.server.model.base.UniqueEntity
 import ru.digitalpaper.server.model.organization.UserOrganization
 import ru.digitalpaper.server.model.user.holder.Avatar
@@ -49,17 +48,6 @@ class User(
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], orphanRemoval = true)
     var organizations: MutableSet<UserOrganization> = mutableSetOf()
 ) : UniqueEntity() {
-
-    fun toResponse(): UserProfileResponse =
-        UserProfileResponse(
-            id = id,
-            email = email,
-            firstName = firstName,
-            lastName = lastName,
-            middleName = middleName,
-            createdAt = createdAt,
-            updatedAt = updatedAt
-        )
 
     fun toListItem(): UserListItem =
         UserListItem(

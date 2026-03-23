@@ -19,6 +19,7 @@ import ru.digitalpaper.server.exception.BadRequestException
 import ru.digitalpaper.server.exception.ForbiddenException
 import ru.digitalpaper.server.exception.NotFoundException
 import ru.digitalpaper.server.model.organization.Organization
+import ru.digitalpaper.server.model.organization.UserOrganization
 import ru.digitalpaper.server.model.organization.holder.ModerationStatus
 import ru.digitalpaper.server.model.user.holder.UserRole
 import ru.digitalpaper.server.repository.OrganizationRepo
@@ -27,7 +28,7 @@ import ru.digitalpaper.server.repository.UserRepo
 import ru.digitalpaper.server.util.Utils
 import ru.digitalpaper.server.util.common.RequestSatellites
 import ru.digitalpaper.server.util.log.ServerLogUtil
-import java.util.UUID
+import java.util.*
 
 @Service
 class OrganizationService(
@@ -295,5 +296,20 @@ class OrganizationService(
             ),
             list = usersPage.content.map { it.toListItem() }.toList()
         )
+    }
+
+    @Transactional
+    fun getRelationByUserId(id: UUID, rs: RequestSatellites): UserOrganization {
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationService.getRelationByUserId",
+                rs.traceId,
+                "Enter",
+                Pair("id", "$id")
+            )
+        )
+
+        return userOrganizationRepo.getRelationByUserId(id)
+            ?: throw NotFoundException("Пользователь не состоит ни в одной организации")
     }
 }

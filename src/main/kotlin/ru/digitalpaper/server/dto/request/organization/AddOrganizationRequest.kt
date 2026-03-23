@@ -12,5 +12,5 @@ data class AddOrganizationRequest(
 
     @JsonProperty(value = "industry")
     @field:NotNull(message = "Параметр industry не передан")
-    val industry: Industry
+    var industry: Industry
 )

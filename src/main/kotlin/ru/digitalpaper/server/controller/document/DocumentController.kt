@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.data.domain.Sort
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -16,6 +18,7 @@ import ru.digitalpaper.server.controller.base.CommonController
 import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.common.ErrorResponse
 import ru.digitalpaper.server.dto.response.document.DocumentsPagedListResponse
+import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.service.DocumentService
 import ru.digitalpaper.server.util.common.RequestSatellites
 import ru.digitalpaper.server.util.log.ServerLogUtil
@@ -53,8 +56,11 @@ class DocumentController(
     )
     @GetMapping(value = ["/list"])
     fun getDocumentsPagedList(
+        @AuthenticationPrincipal payload: UserPayload,
         @RequestParam page: Int = 1,
         @RequestParam size: Int = 10,
+        @RequestParam sortField: String = "created_at",
+        @RequestParam sortDirection: Sort.Direction = Sort.Direction.DESC,
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
@@ -70,7 +76,7 @@ class DocumentController(
         )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            documentService.getDocumentsPagedList(page, size, rs)
+            documentService.getDocumentsPagedList(page, size, payload, sortField, sortDirection, rs)
         }
     }
 }
