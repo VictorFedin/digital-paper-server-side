@@ -32,6 +32,14 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID> {
 
     @Query(
         value = """
+            SELECT uo.organization
+            FROM UserOrganization uo
+        """
+    )
+    fun getOrganizations(pageable: Pageable): Page<Organization>
+
+    @Query(
+        value = """
             SELECT uo
             FROM UserOrganization uo
             WHERE uo.user.id = :userId AND uo.organization.id = :organizationId

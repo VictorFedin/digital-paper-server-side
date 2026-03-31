@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.config.properties.MinioProperties
+import ru.digitalpaper.server.dto.internal.DownloadedObject
 import ru.digitalpaper.server.dto.internal.StoredObjectInfo
 import ru.digitalpaper.server.type.StorageObjectType
 import ru.digitalpaper.server.util.common.RequestSatellites
@@ -124,6 +125,53 @@ class StorageService(
                 etag = response.etag(),
                 versionId = response.versionId()
             )
+        }
+    }
+
+    fun download(
+        objectKey: String,
+        type: StorageObjectType,
+        rs: RequestSatellites
+    ): DownloadedObject {
+        logger.info(
+            ServerLogUtil.info(
+                "StorageService.download",
+                rs.traceId,
+                "Enter",
+                mapOf(
+                    "objectKey" to objectKey,
+                    "type" to "$type"
+                )
+            )
+        )
+
+        val bucket = resolveBucket(type)
+
+        try {
+            val stat = minioClient.statObject(
+                StatObjectArgs.builder()
+                    .bucket(bucket)
+                    .`object`(objectKey)
+                    .build()
+            )
+
+            val stream = minioClient.getObject(
+                GetObjectArgs.builder()
+                    .bucket(bucket)
+                    .`object`(objectKey)
+                    .build()
+            )
+
+            val originalFileName = stat.userMetadata()["original-filename"]
+
+            return DownloadedObject(
+                inputStream = stream,
+                contentType = stat.contentType() ?: "application/octet-stream",
+                size = stat.size(),
+                originalFileName = originalFileName
+            )
+        } catch (e: Exception) {
+            throw e
         }
     }
 

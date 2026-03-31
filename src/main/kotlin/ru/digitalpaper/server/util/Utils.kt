@@ -1,15 +1,7 @@
 package ru.digitalpaper.server.util
 
-import com.google.gson.ExclusionStrategy
-import com.google.gson.FieldAttributes
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
-import com.google.gson.JsonParseException
-import com.google.gson.JsonPrimitive
-import com.google.gson.JsonSerializationContext
-import com.google.gson.JsonSerializer
+import com.google.gson.*
+import org.springframework.data.domain.Sort
 import java.lang.reflect.Type
 import java.time.LocalDate
 import java.time.ZonedDateTime
@@ -93,5 +85,13 @@ object Utils {
             size > 100 -> 100
             else -> size
         }
+    }
+
+    fun safeDirection(
+        direction: String
+    ): Sort.Direction {
+        return if (direction.contains("ASC", true))
+            Sort.Direction.ASC
+        else Sort.Direction.DESC
     }
 }

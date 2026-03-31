@@ -59,4 +59,18 @@ class User(
             createdAt = createdAt,
             updatedAt = updatedAt
         )
+
+    fun getShortName(): String {
+        return buildString {
+            append(lastName)
+
+            firstName.firstOrNull()?.let {
+                append(" ${it.uppercaseChar()}.")
+            }
+
+            middleName.firstOrNull()?.let {
+                append(it.uppercaseChar()).append(".")
+            }
+        }
+    }
 }

@@ -6,12 +6,13 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.common.ErrorResponse
 import ru.digitalpaper.server.exception.CustomException
 import ru.digitalpaper.server.util.common.RequestSatellites
 import ru.digitalpaper.server.util.log.ServerLogUtil
-import java.util.UUID
+import java.util.*
 
 open class CommonController {
 
@@ -95,4 +96,12 @@ open class CommonController {
 
         return bearerToken
     }
+
+    fun buildPagedRequest(
+        page: Int,
+        size: Int,
+        sortField: String,
+        sortDirection: String
+    ): PagedRequest =
+        PagedRequest(page, size, sortField, sortDirection)
 }

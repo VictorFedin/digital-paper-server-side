@@ -10,15 +10,7 @@ import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import ru.digitalpaper.server.controller.base.CommonController
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
@@ -33,7 +25,7 @@ import ru.digitalpaper.server.dto.response.user.UsersPagedListResponse
 import ru.digitalpaper.server.service.OrganizationService
 import ru.digitalpaper.server.util.common.RequestSatellites
 import ru.digitalpaper.server.util.log.ServerLogUtil
-import java.util.UUID
+import java.util.*
 
 @RestController
 @RequestMapping(value = ["/api/v1/organizations"])
@@ -115,8 +107,10 @@ class OrganizationController(
     @GetMapping(value = ["/my"])
     fun getMyOrganizationsList(
         @AuthenticationPrincipal payload: UserPayload,
-        @RequestParam page: Int = 1,
-        @RequestParam size: Int = 10,
+        @RequestParam(required = false) page: Int = 1,
+        @RequestParam(required = false) size: Int = 10,
+        @RequestParam(required = false) sortField: String = "createdBy",
+        @RequestParam(required = false) sortDirection: String = "DESC",
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
@@ -127,14 +121,80 @@ class OrganizationController(
                 traceId.toString(),
                 "Enter",
                 mapOf(
-                    "page" to page.toString(),
-                    "size" to size.toString()
+                    "page" to "$page",
+                    "size" to "$size",
+                    "sortField" to sortField,
+                    "sortDirection" to sortDirection
                 )
             )
         )
 
+        val pagedRequest = buildPagedRequest(page, size, sortField, sortDirection)
+
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.getMyOrganizationsList(payload, page, size, rs)
+            organizationService.getMyOrganizationsList(
+                payload,
+                pagedRequest,
+                rs
+            )
+        }
+    }
+
+    @Operation(
+        summary = "Получить список всех организаций",
+        description = "Возвращает список организаций в системе"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = OrganizationsPagedListResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
+    @GetMapping(value = [""])
+    fun getOrganizationsList(
+        @RequestParam(required = false) page: Int = 1,
+        @RequestParam(required = false) size: Int = 10,
+        @RequestParam(required = false) sortField: String = "createdBy",
+        @RequestParam(required = false) sortDirection: String = "DESC",
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.getOrganizationsList",
+                traceId.toString(),
+                "Enter",
+                mapOf(
+                    "page" to "$page",
+                    "size" to "$size",
+                    "sortField" to sortField,
+                    "sortDirection" to sortDirection
+                )
+            )
+        )
+
+        val pagedRequest = buildPagedRequest(page, size, sortField, sortDirection)
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            organizationService.getOrganizationsList(
+                pagedRequest,
+                rs
+            )
         }
     }
 

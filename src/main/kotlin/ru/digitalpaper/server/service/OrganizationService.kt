@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
+import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
@@ -63,6 +64,9 @@ class OrganizationService(
 
         val newOrganization = Organization(
             name = request.name,
+            description = request.description,
+            phone = request.phoneNumber,
+            email = request.email,
             industry = request.industry,
             status = ModerationStatus.NEW
         )
@@ -101,8 +105,7 @@ class OrganizationService(
     @Transactional
     fun getMyOrganizationsList(
         payload: UserPayload,
-        page: Int,
-        size: Int,
+        pagedRequest: PagedRequest,
         rs: RequestSatellites
     ): OrganizationsPagedListResponse {
         logger.info(
@@ -110,31 +113,67 @@ class OrganizationService(
                 "OrganizationService.getMyOrganizationsList",
                 rs.traceId,
                 "Enter",
-                Pair("request", "page = '$page'; size = '$size'")
+                mapOf("request" to "$pagedRequest")
             )
         )
 
-        val user = userRepo.getUserBySub(payload.sub)
+        val user = userRepo.getUserById(payload.id)
             ?: throw NotFoundException("Пользователь не найден")
 
-        val pageNumber = Utils.safePage(page)
-        val pageSize = Utils.safeSize(size)
-        val direction = Sort.Direction.DESC
-        val sortField = DEFAULT_SORT_FIELD
+        val pageNumber = Utils.safePage(pagedRequest.page)
+        val pageSize = Utils.safeSize(pagedRequest.size)
+        val direction = Utils.safeDirection(pagedRequest.sortDirection)
         val pageable = PageRequest.of(
             pageNumber,
             pageSize,
-            Sort.by(direction, sortField)
+            Sort.by(direction, pagedRequest.sortField)
         )
 
         val orgPage = userOrganizationRepo.getOrganizationsByUserId(user.id, pageable)
 
         return OrganizationsPagedListResponse(
             page = PagedResponse(
-                page = page,
-                size = size,
+                page = pagedRequest.page,
+                size = pagedRequest.size,
                 totalItems = orgPage.totalElements,
-                sortField = sortField,
+                sortField = pagedRequest.sortField,
+                sortDirection = direction.name
+            ),
+            list = orgPage.content.map { it.toListItem() }.toList()
+        )
+    }
+
+    @Transactional
+    fun getOrganizationsList(
+        pagedRequest: PagedRequest,
+        rs: RequestSatellites
+    ): OrganizationsPagedListResponse {
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationService.getOrganizationsList",
+                rs.traceId,
+                "Enter",
+                mapOf("request" to "$pagedRequest")
+            )
+        )
+
+        val pageNumber = Utils.safePage(pagedRequest.page)
+        val pageSize = Utils.safeSize(pagedRequest.size)
+        val direction = Utils.safeDirection(pagedRequest.sortDirection)
+        val pageable = PageRequest.of(
+            pageNumber,
+            pageSize,
+            Sort.by(direction, pagedRequest.sortField)
+        )
+
+        val orgPage = organizationRepo.getOrganizations(pageable)
+
+        return OrganizationsPagedListResponse(
+            page = PagedResponse(
+                page = pagedRequest.page,
+                size = pagedRequest.size,
+                totalItems = orgPage.totalElements,
+                sortField = pagedRequest.sortField,
                 sortDirection = direction.name
             ),
             list = orgPage.content.map { it.toListItem() }.toList()

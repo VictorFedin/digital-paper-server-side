@@ -1,7 +1,6 @@
 package ru.digitalpaper.server.model.document
 
 import jakarta.persistence.*
-import ru.digitalpaper.server.dto.response.document.DocumentListItem
 import ru.digitalpaper.server.model.base.UniqueEntity
 import ru.digitalpaper.server.model.document.holder.DocumentStatus
 import ru.digitalpaper.server.model.document.holder.DocumentType
@@ -67,13 +66,4 @@ class Document(
     @Column(name = "entity_version", nullable = false)
     var entityVersion: Long = 0
 
-) : UniqueEntity() {
-
-    fun toListItem(): DocumentListItem =
-        DocumentListItem(
-            id = id,
-            name = name,
-            createdAt = createdAt,
-            updatedAt = updatedAt
-        )
-}
+) : UniqueEntity()
