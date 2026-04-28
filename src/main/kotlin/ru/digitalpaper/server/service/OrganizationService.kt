@@ -35,7 +35,8 @@ import java.util.*
 class OrganizationService(
     private val organizationRepo: OrganizationRepo,
     private val userRepo: UserRepo,
-    private val userOrganizationRepo: UserOrganizationRepo
+    private val userOrganizationRepo: UserOrganizationRepo,
+    private val invitationService: InvitationService
 ) {
 
     companion object {
@@ -207,17 +208,22 @@ class OrganizationService(
             throw ForbiddenException("Недостаточно прав")
 
         val userToAdd = userRepo.getUserByEmail(request.email)
-            ?: throw NotFoundException("Пользователь с email = '${request.email}' не найден")
 
-        if (userOrganizationRepo.existUserInOrganization(userToAdd.id, membership.organization.id))
-            throw BadRequestException("Пользователь уже состоит в организации")
+        if (userToAdd != null) {
+            if (userOrganizationRepo.existUserInOrganization(userToAdd.id, membership.organization.id))
+                throw BadRequestException("Пользователь уже состоит в организации")
 
-        val organization = membership.organization
+            val organization = membership.organization
 
-        organization.addMember(user = userToAdd, role = request.role)
-        organizationRepo.save(organization)
+            organization.addMember(user = userToAdd, role = UserRole.EMPLOYEE)
+            organizationRepo.save(organization)
 
-        return MessageResponse("Пользователь добавлен в организацию '${organization.name}'")
+            return MessageResponse("Пользователь добавлен в организацию '${organization.name}'")
+        } else {
+            invitationService.invite(request.email, membership.organization, actor, rs)
+
+            return MessageResponse("Пользователь приглашен в организацию '${membership.organization.name}'")
+        }
     }
 
     @Transactional

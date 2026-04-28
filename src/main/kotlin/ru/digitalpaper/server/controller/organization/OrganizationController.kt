@@ -109,7 +109,7 @@ class OrganizationController(
         @AuthenticationPrincipal payload: UserPayload,
         @RequestParam(required = false) page: Int = 1,
         @RequestParam(required = false) size: Int = 10,
-        @RequestParam(required = false) sortField: String = "createdBy",
+        @RequestParam(required = false) sortField: String = "createdAt",
         @RequestParam(required = false) sortDirection: String = "DESC",
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {

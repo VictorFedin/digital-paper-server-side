@@ -133,6 +133,7 @@ class Organization(
 
     fun toListItem(): OrganizationListItem =
         OrganizationListItem(
+            id = id,
             name = name,
             avatar = avatar,
             type = type,

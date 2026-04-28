@@ -80,14 +80,26 @@ services:
       "
     restart: "no"
 
-  mailhog:
-    image: mailhog/mailhog
-    container_name: mailhog_digitalpaper
+  mailpit:
+    image: axllent/mailpit
+    container_name: digital_paper_mailpit
     ports:
       - "1025:1025"
       - "8025:8025"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: digital_paper_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
 
 volumes:
   kc_pg_data:
   kc_data:
   minio_data:
+  pgadmin_data:

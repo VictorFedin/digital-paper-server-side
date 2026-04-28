@@ -6,11 +6,13 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.stereotype.Component
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.service.InvitationService
 import ru.digitalpaper.server.service.UserIdentityService
 
 @Component
 class CustomJwtAuthenticationConverter(
-    private val userIdentityService: UserIdentityService
+    private val userIdentityService: UserIdentityService,
+    private val invitationService: InvitationService
 ) : Converter<Jwt, UsernamePasswordAuthenticationToken> {
 
     override fun convert(jwt: Jwt): UsernamePasswordAuthenticationToken {
@@ -19,10 +21,6 @@ class CustomJwtAuthenticationConverter(
             ?: throw IllegalStateException("sub claim is null")
         val email = jwt.getClaimAsString("email")
             ?: throw IllegalStateException("email claim is null")
-
-        jwt.claims.forEach {
-            println("${it.key}: ${it.value}")
-        }
 
         /* Fallback handlers */
         val firstName = jwt.getClaimAsString("given_name")
@@ -43,6 +41,8 @@ class CustomJwtAuthenticationConverter(
             lastName = lastName,
             middleName = middleName,
         )
+
+        invitationService.acceptInvitation(user)
 
         val userPayload = UserPayload(
             id = user.id,
