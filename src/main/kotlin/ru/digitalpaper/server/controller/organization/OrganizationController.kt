@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
+import org.springframework.data.domain.Sort
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
@@ -21,7 +22,9 @@ import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.dto.response.user.UsersListResponse
 import ru.digitalpaper.server.dto.response.user.UsersPagedListResponse
+import ru.digitalpaper.server.model.organization.holder.ModerationStatus
 import ru.digitalpaper.server.service.OrganizationService
 import ru.digitalpaper.server.util.common.RequestSatellites
 import ru.digitalpaper.server.util.log.ServerLogUtil
@@ -316,7 +319,7 @@ class OrganizationController(
             )
         ]
     )
-    @DeleteMapping(value = ["/{id}"])
+    @PostMapping(value = ["/{id}/delete"])
     fun deleteOrganization(
         @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
@@ -334,7 +337,53 @@ class OrganizationController(
         )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.deleteOrganization(id, payload, rs)
+            organizationService.changeOrganizationStatus(id, ModerationStatus.DELETED, payload, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Восстановить организацию",
+        description = "Возращает результат восстановления организации"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = MessageResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
+    @PostMapping(value = ["/{id}/restore"])
+    fun restoreOrganization(
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable id: UUID,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.restoreOrganization",
+                traceId.toString(),
+                "Enter",
+                Pair("id", "$id")
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            organizationService.changeOrganizationStatus(id, ModerationStatus.NEW, payload, rs)
         }
     }
 
@@ -414,6 +463,9 @@ class OrganizationController(
         @PathVariable id: UUID,
         @RequestParam page: Int = 1,
         @RequestParam size: Int = 10,
+        @RequestParam sortField: String = "createdAt",
+        @RequestParam sortDirection: Sort.Direction = Sort.Direction.DESC,
+        @RequestParam search: String? = null,
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
@@ -428,7 +480,53 @@ class OrganizationController(
         )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.getOrganizationUsers(id, page, size, rs)
+            organizationService.getOrganizationUsers(id, page, size, sortField, sortDirection, search, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Получить список дней рождений в этом месяце",
+        description = "Возвращает список пользователей организации, у которых в этом месяце день рождения"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = UsersListResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
+    @GetMapping(value = ["/{id}/users/birthday"])
+    fun getOrganizationUsersBirthdays(
+        @PathVariable id: UUID,
+        @RequestParam month: Double,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationController.getOrganizationUsersBirthdays",
+                traceId.toString(),
+                "Enter",
+                mapOf("month" to "$month")
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            organizationService.getOrganizationUsersBirthdays(id, month, rs)
         }
     }
 }

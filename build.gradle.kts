@@ -55,6 +55,8 @@ dependencies {
 
     implementation("io.minio:minio:8.6.0")
 
+    implementation("org.apache.poi:poi-ooxml:5.4.1")
+
     runtimeOnly("org.flywaydb:flyway-database-postgresql:11.3.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

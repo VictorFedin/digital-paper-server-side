@@ -5,5 +5,6 @@ enum class DocumentStatus {
     IN_PROGRESS,
     PENDING_REVIEW,
     DONE,
-    REJECTED
+    REJECTED,
+    DELETED
 }

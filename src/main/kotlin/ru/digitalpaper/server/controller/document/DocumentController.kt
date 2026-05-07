@@ -17,8 +17,11 @@ import ru.digitalpaper.server.controller.base.CommonController
 import ru.digitalpaper.server.dto.request.document.CreateDocumentRequest
 import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.common.ErrorResponse
+import ru.digitalpaper.server.dto.response.common.MessageResponse
+import ru.digitalpaper.server.dto.response.document.DocumentResponse
 import ru.digitalpaper.server.dto.response.document.DocumentsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.model.document.holder.DocumentStatus
 import ru.digitalpaper.server.model.document.holder.DocumentType
 import ru.digitalpaper.server.service.DocumentService
 import ru.digitalpaper.server.util.common.RequestSatellites
@@ -61,9 +64,10 @@ class DocumentController(
         @AuthenticationPrincipal payload: UserPayload,
         @RequestParam page: Int = 1,
         @RequestParam size: Int = 10,
-        @RequestParam sortField: String = "created_at",
+        @RequestParam sortField: String = "createdAt",
         @RequestParam sortDirection: Sort.Direction = Sort.Direction.DESC,
         @RequestParam type: DocumentType? = null,
+        @RequestParam search: String? = null,
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
@@ -79,13 +83,13 @@ class DocumentController(
         )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            documentService.getDocumentsPagedList(page, size, payload, sortField, sortDirection, type, rs)
+            documentService.getDocumentsPagedList(page, size, payload, sortField, sortDirection, type, search, rs)
         }
     }
 
     @Operation(
-        summary = "Загрузить документ",
-        description = "Возвращает детали созданного документа"
+        summary = "Получить корзину документов",
+        description = "Возвращает корзину документов"
     )
     @ApiResponses(
         value = [
@@ -107,11 +111,74 @@ class DocumentController(
             )
         ]
     )
+    @GetMapping(value = ["/deleted"])
+    fun getDeletedDocumentsPagedList(
+        @AuthenticationPrincipal payload: UserPayload,
+        @RequestParam page: Int = 1,
+        @RequestParam size: Int = 10,
+        @RequestParam sortField: String = "createdAt",
+        @RequestParam sortDirection: Sort.Direction = Sort.Direction.DESC,
+        @RequestParam type: DocumentType? = null,
+        @RequestParam search: String? = null,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "DocumentController.getDeletedDocumentsPagedList",
+                traceId.toString(),
+                "Enter",
+                Pair("page", "$page"),
+                Pair("size", "$size")
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            documentService.getDeletedDocumentsPagedList(
+                page,
+                size,
+                payload,
+                sortField,
+                sortDirection,
+                type,
+                search,
+                rs
+            )
+        }
+    }
+
+    @Operation(
+        summary = "Загрузить документ",
+        description = "Возвращает детали созданного документа"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = DocumentResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
     @PostMapping(value = ["/upload"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadDocument(
         @AuthenticationPrincipal payload: UserPayload,
         @RequestPart("file") file: MultipartFile,
-        @RequestPart("request") createDocumentRequest: CreateDocumentRequest,
+        @RequestParam("name") name: String,
+        @RequestParam("type") type: DocumentType,
+        @RequestParam("folderId") folderId: UUID? = null,
         request: HttpServletRequest, response: HttpServletResponse
     ): Response {
         val traceId = getTraceIdOrGenerate(request)
@@ -120,9 +187,14 @@ class DocumentController(
             ServerLogUtil.info(
                 "DocumentController.uploadDocument",
                 traceId.toString(),
-                "Enter",
-                mapOf("request" to "$createDocumentRequest")
+                "Enter"
             )
+        )
+
+        val createDocumentRequest = CreateDocumentRequest(
+            name = name,
+            type = type,
+            folderId = folderId
         )
 
         return handleRequest(request, response, traceId) { rs: RequestSatellites ->
@@ -163,9 +235,99 @@ class DocumentController(
             )
         )
 
-//        handleRequest(request, response, traceId) { rs: RequestSatellites ->
-//            documentService.downloadDocument(id, payload, rs)
-//        }
+        handleFileRequest(request, response, traceId) { rs: RequestSatellites ->
+            documentService.downloadDocument(id, payload, response, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Удалить документ",
+        description = "Возвращает результат удаления документа"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = MessageResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
+    @PostMapping(value = ["/{id}/delete"])
+    fun deleteDocument(
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable id: UUID,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "DocumentController.deleteDocument",
+                traceId.toString(),
+                "Enter"
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            documentService.changeDocumentStatus(id, DocumentStatus.DELETED, payload, rs)
+        }
+    }
+
+    @Operation(
+        summary = "Восстановить документ",
+        description = "Возвращает результат восстановления документа"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                description = "Операция успешна",
+                responseCode = "200",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = MessageResponse::class)
+                )]
+            ),
+            ApiResponse(
+                description = "Ошибка сервера",
+                responseCode = "500",
+                content = [Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )]
+            )
+        ]
+    )
+    @PostMapping(value = ["/{id}/restore"])
+    fun restoreDocument(
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable id: UUID,
+        request: HttpServletRequest, response: HttpServletResponse
+    ): Response {
+        val traceId = getTraceIdOrGenerate(request)
+
+        logger.info(
+            ServerLogUtil.info(
+                "DocumentController.restoreDocument",
+                traceId.toString(),
+                "Enter"
+            )
+        )
+
+        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
+            documentService.changeDocumentStatus(id, DocumentStatus.CREATED, payload, rs)
+        }
     }
 
 }

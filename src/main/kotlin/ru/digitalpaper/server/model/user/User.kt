@@ -13,6 +13,7 @@ import ru.digitalpaper.server.dto.response.user.UserListItem
 import ru.digitalpaper.server.model.base.UniqueEntity
 import ru.digitalpaper.server.model.organization.UserOrganization
 import ru.digitalpaper.server.model.user.holder.Avatar
+import java.time.LocalDate
 
 @Entity
 @Table(
@@ -41,6 +42,9 @@ class User(
     @Column(name = "middle_name")
     var middleName: String = "",
 
+    @Column(name = "birthday", nullable = true)
+    var birthday: LocalDate? = null,
+
     @JdbcTypeCode(value = SqlTypes.JSON)
     @Column(name = "avatar")
     var avatar: Avatar? = null,
@@ -56,6 +60,7 @@ class User(
             firstName = firstName,
             lastName = lastName,
             middleName = middleName,
+            birthday = birthday,
             createdAt = createdAt,
             updatedAt = updatedAt
         )

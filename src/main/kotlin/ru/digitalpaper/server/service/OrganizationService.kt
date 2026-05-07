@@ -9,12 +9,14 @@ import org.springframework.stereotype.Service
 import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
+import ru.digitalpaper.server.dto.request.organization.OrganizationUserListFilter
 import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.common.PagedResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.dto.response.user.UsersListResponse
 import ru.digitalpaper.server.dto.response.user.UsersPagedListResponse
 import ru.digitalpaper.server.exception.BadRequestException
 import ru.digitalpaper.server.exception.ForbiddenException
@@ -41,8 +43,6 @@ class OrganizationService(
 
     companion object {
         private val logger: Logger = LoggerFactory.getLogger("grayLog")
-
-        private const val DEFAULT_SORT_FIELD = "createdAt"
     }
 
     @Transactional
@@ -273,17 +273,17 @@ class OrganizationService(
     }
 
     @Transactional
-    fun deleteOrganization(
+    fun changeOrganizationStatus(
         id: UUID,
+        status: ModerationStatus,
         payload: UserPayload,
         rs: RequestSatellites
     ): MessageResponse {
         logger.info(
             ServerLogUtil.info(
-                "OrganizationService.deleteOrganization",
+                "OrganizationService.changeOrganizationStatus",
                 rs.traceId,
-                "Enter",
-                Pair("id", "$id"),
+                "Enter"
             )
         )
 
@@ -296,9 +296,27 @@ class OrganizationService(
         if (!membership.role.canManageOrganization())
             throw ForbiddenException("Недостаточно прав")
 
-        organizationRepo.delete(membership.organization)
+        val organization = membership.organization
 
-        return MessageResponse("Организация удалена")
+
+        organizationRepo.save(organization)
+
+        when (status) {
+            ModerationStatus.DELETED -> {
+                organization.status = status
+                organizationRepo.save(membership.organization)
+
+                return MessageResponse("Организация удалена")
+            }
+            ModerationStatus.NEW -> {
+                organization.status = status
+                organizationRepo.save(membership.organization)
+
+                return MessageResponse("Организация восстановлена")
+            }
+            else -> throw BadRequestException("Операция не может быть выполнена")
+        }
+
     }
 
     @Transactional
@@ -306,6 +324,9 @@ class OrganizationService(
         id: UUID,
         page: Int,
         size: Int,
+        sortField: String,
+        sortDirection: Sort.Direction,
+        search: String? = null,
         rs: RequestSatellites
     ): UsersPagedListResponse {
         logger.info(
@@ -321,15 +342,17 @@ class OrganizationService(
 
         val pageNumber = Utils.safePage(page)
         val pageSize = Utils.safeSize(size)
-        val direction = Sort.Direction.DESC
-        val sortField = DEFAULT_SORT_FIELD
+        val pageSort = resolveUserSortField(sortField)
+
         val pageable = PageRequest.of(
             pageNumber,
             pageSize,
-            Sort.by(direction, sortField)
+            Sort.by(sortDirection, pageSort)
         )
 
-        val usersPage = userOrganizationRepo.getUsersByOrganizationId(id, pageable)
+        val filter = buildFilter(id, search)
+
+        val usersPage = userOrganizationRepo.getUsersByOrganizationId(filter, pageable)
 
         return UsersPagedListResponse(
             page = PagedResponse(
@@ -337,9 +360,33 @@ class OrganizationService(
                 size = size,
                 totalItems = usersPage.totalElements,
                 sortField = sortField,
-                sortDirection = direction.name
+                sortDirection = sortDirection.name
             ),
             list = usersPage.content.map { it.toListItem() }.toList()
+        )
+    }
+
+    @Transactional
+    fun getOrganizationUsersBirthdays(
+        organizationId: UUID,
+        month: Double,
+        rs: RequestSatellites
+    ): UsersListResponse {
+        logger.info(
+            ServerLogUtil.info(
+                "OrganizationService.getOrganizationUsersWithBirthdayInCurrentMonth",
+                rs.traceId,
+                "Enter",
+            )
+        )
+
+        organizationRepo.getOrganization(organizationId)
+            ?: throw NotFoundException("Организация не найдена")
+
+        val users = userOrganizationRepo.getUsersWithBirthdayInMonth(organizationId, month)
+
+        return UsersListResponse(
+            list = users.map { it.toListItem() }
         )
     }
 
@@ -357,4 +404,25 @@ class OrganizationService(
         return userOrganizationRepo.getRelationByUserId(id)
             ?: throw NotFoundException("Пользователь не состоит ни в одной организации")
     }
+
+    private fun resolveUserSortField(sortField: String): String {
+        return when (sortField) {
+            "id" -> "id"
+            "email" -> "email"
+            "name" -> "firstName"
+            "createdAt" -> "createdAt"
+            "updatedAt" -> "updatedAt"
+            else -> "createdAt"
+        }
+    }
+
+    private fun buildFilter(
+        organizationId: UUID? = null,
+        search: String? = null
+    ): OrganizationUserListFilter =
+        OrganizationUserListFilter(
+            organizationId = organizationId,
+            search = search
+        )
+
 }

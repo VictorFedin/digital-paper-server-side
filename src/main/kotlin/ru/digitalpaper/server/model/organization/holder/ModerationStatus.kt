@@ -5,5 +5,6 @@ enum class ModerationStatus {
     PENDING_REVIEW,
     REVISION_NEEDED,
     APPROVED,
-    REJECTED
+    REJECTED,
+    DELETED;
 }

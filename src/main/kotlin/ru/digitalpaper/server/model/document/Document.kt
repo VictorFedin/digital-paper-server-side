@@ -38,6 +38,9 @@ class Document(
     @Column(name = "status", nullable = false)
     var status: DocumentStatus = DocumentStatus.CREATED,
 
+    @Column(name = "content_type")
+    var contentType: String,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "nomenclature_id")
     var nomenclature: Nomenclature? = null,
@@ -64,6 +67,10 @@ class Document(
 
     @Version
     @Column(name = "entity_version", nullable = false)
-    var entityVersion: Long = 0
+    var entityVersion: Long = 0,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_id")
+    var template: DocumentTemplate? = null
 
 ) : UniqueEntity()

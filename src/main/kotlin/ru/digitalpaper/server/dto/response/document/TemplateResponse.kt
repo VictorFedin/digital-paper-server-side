@@ -1,16 +1,14 @@
 package ru.digitalpaper.server.dto.response.document
 
 import ru.digitalpaper.server.dto.response.Response
-import ru.digitalpaper.server.model.document.holder.DocumentStatus
 import java.time.ZonedDateTime
 import java.util.UUID
 
-data class DocumentListItem(
+data class TemplateResponse(
     val id: UUID,
     val name: String,
-    val responsible: String,
-    val status: DocumentStatus,
-    val contentType: String,
+    val organizationId: UUID,
+    val createdBy: UUID,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime
 ) : Response()

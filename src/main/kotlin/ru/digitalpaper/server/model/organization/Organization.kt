@@ -86,10 +86,6 @@ class Organization(
         user.organizations.add(link)
     }
 
-    fun addDepartment(department: Department) {
-        departments.add(department)
-    }
-
     fun updateDetails(
         name: String,
         fullName: String,
@@ -115,7 +111,7 @@ class Organization(
     fun canBeEdited(): Boolean =
         when (this.status) {
             ModerationStatus.NEW, ModerationStatus.REVISION_NEEDED -> true
-            ModerationStatus.PENDING_REVIEW, ModerationStatus.APPROVED, ModerationStatus.REJECTED -> false
+            ModerationStatus.PENDING_REVIEW, ModerationStatus.APPROVED, ModerationStatus.REJECTED, ModerationStatus.DELETED -> false
         }
 
     fun toResponse(): OrganizationResponse =

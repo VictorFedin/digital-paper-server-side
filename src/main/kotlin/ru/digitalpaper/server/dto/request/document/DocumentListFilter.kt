@@ -1,0 +1,11 @@
+package ru.digitalpaper.server.dto.request.document
+
+import ru.digitalpaper.server.model.document.holder.DocumentType
+import java.util.UUID
+
+data class DocumentListFilter(
+    val organizationId: UUID? = null,
+    val type: DocumentType? = null,
+    val search: String? = null,
+    val deleted: Boolean? = null
+)

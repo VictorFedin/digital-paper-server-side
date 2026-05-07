@@ -8,10 +8,10 @@ import org.springframework.stereotype.Repository
 import ru.digitalpaper.server.model.organization.Organization
 import ru.digitalpaper.server.model.organization.UserOrganization
 import ru.digitalpaper.server.model.user.User
-import java.util.UUID
+import java.util.*
 
 @Repository
-interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID> {
+interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID>, UserOrganizationCustomRepo {
 
     @Query(
         value = """
@@ -29,14 +29,6 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID> {
         userId: UUID,
         pageable: Pageable
     ): Page<Organization>
-
-    @Query(
-        value = """
-            SELECT uo.organization
-            FROM UserOrganization uo
-        """
-    )
-    fun getOrganizations(pageable: Pageable): Page<Organization>
 
     @Query(
         value = """
@@ -58,27 +50,25 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID> {
 
     @Query(
         value = """
-            SELECT uo.user
-            FROM UserOrganization uo
-            WHERE uo.organization.id = :organizationId
-        """,
-        countQuery = """
-            SELECT count(uo)
-            FROM UserOrganization uo
-            WHERE uo.organization.id = :organizationId
-        """
-    )
-    fun getUsersByOrganizationId(
-        organizationId: UUID,
-        pageable: Pageable
-    ): Page<User>
-
-    @Query(
-        value = """
             SELECT uo
             FROM UserOrganization uo
             WHERE uo.user.id = :id
         """
     )
     fun getRelationByUserId(id: UUID): UserOrganization?
+
+    @Query(
+        value = """
+                SELECT uo.user
+                FROM UserOrganization uo
+                WHERE uo.organization.id = :organizationId
+                AND FUNCTION('date_part', 'month', uo.user.birthday) = :month
+                ORDER BY FUNCTION('date_part', 'day', uo.user.birthday) ASC
+            """
+    )
+    fun getUsersWithBirthdayInMonth(
+        organizationId: UUID,
+        month: Double
+    ): List<User>
+
 }

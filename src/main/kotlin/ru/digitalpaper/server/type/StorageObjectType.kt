@@ -28,6 +28,18 @@ enum class StorageObjectType(
             "image/png"
         ),
         maxSizeBytes = 50 * 1024 * 1024
+    ),
+
+    TEMPLATE(
+        prefix = "templates",
+        allowedContentTypes = setOf(
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "image/jpeg",
+            "image/png"
+        ),
+        maxSizeBytes = 50 * 1024 * 1024
     )
 
 }
