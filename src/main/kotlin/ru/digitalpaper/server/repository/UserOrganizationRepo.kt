@@ -68,7 +68,7 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID>, UserOrga
     )
     fun getUsersWithBirthdayInMonth(
         organizationId: UUID,
-        month: Double
+        month: Int
     ): List<User>
 
 }

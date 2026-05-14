@@ -5,27 +5,26 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
+import org.springframework.core.io.InputStreamResource
 import org.springframework.data.domain.Sort
+import org.springframework.http.ContentDisposition
+import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import ru.digitalpaper.server.controller.base.CommonController
 import ru.digitalpaper.server.dto.request.document.CreateDocumentRequest
-import ru.digitalpaper.server.dto.response.Response
+import ru.digitalpaper.server.dto.request.document.DocumentListRequest
 import ru.digitalpaper.server.dto.response.common.ErrorResponse
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.document.DocumentResponse
 import ru.digitalpaper.server.dto.response.document.DocumentsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
-import ru.digitalpaper.server.model.document.holder.DocumentStatus
 import ru.digitalpaper.server.model.document.holder.DocumentType
 import ru.digitalpaper.server.service.DocumentService
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
+import java.nio.charset.StandardCharsets
 import java.util.*
 
 @RestController
@@ -33,7 +32,7 @@ import java.util.*
 @Validated
 class DocumentController(
     private val documentService: DocumentService,
-) : CommonController() {
+) {
 
     @Operation(
         summary = "Получить список документов",
@@ -67,24 +66,17 @@ class DocumentController(
         @RequestParam sortField: String = "createdAt",
         @RequestParam sortDirection: Sort.Direction = Sort.Direction.DESC,
         @RequestParam type: DocumentType? = null,
-        @RequestParam search: String? = null,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentController.getDocumentsPagedList",
-                traceId.toString(),
-                "Enter",
-                Pair("page", "$page"),
-                Pair("size", "$size")
-            )
+        @RequestParam search: String? = null
+    ): DocumentsPagedListResponse {
+        val request = DocumentListRequest(
+            page,
+            size,
+            sortField,
+            sortDirection,
+            type,
+            search
         )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            documentService.getDocumentsPagedList(page, size, payload, sortField, sortDirection, type, search, rs)
-        }
+        return documentService.getDocumentsPagedList(payload, request)
     }
 
     @Operation(
@@ -120,32 +112,20 @@ class DocumentController(
         @RequestParam sortDirection: Sort.Direction = Sort.Direction.DESC,
         @RequestParam type: DocumentType? = null,
         @RequestParam search: String? = null,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentController.getDeletedDocumentsPagedList",
-                traceId.toString(),
-                "Enter",
-                Pair("page", "$page"),
-                Pair("size", "$size")
-            )
+    ): DocumentsPagedListResponse {
+        val request = DocumentListRequest(
+            page,
+            size,
+            sortField,
+            sortDirection,
+            type,
+            search
         )
 
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            documentService.getDeletedDocumentsPagedList(
-                page,
-                size,
-                payload,
-                sortField,
-                sortDirection,
-                type,
-                search,
-                rs
-            )
-        }
+        return documentService.getDeletedDocumentsPagedList(
+            payload,
+            request
+        )
     }
 
     @Operation(
@@ -179,27 +159,14 @@ class DocumentController(
         @RequestParam("name") name: String,
         @RequestParam("type") type: DocumentType,
         @RequestParam("folderId") folderId: UUID? = null,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentController.uploadDocument",
-                traceId.toString(),
-                "Enter"
-            )
-        )
-
+    ): DocumentResponse {
         val createDocumentRequest = CreateDocumentRequest(
             name = name,
             type = type,
             folderId = folderId
         )
 
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            documentService.uploadDocument(payload, createDocumentRequest, file, rs)
-        }
+        return documentService.uploadDocument(payload, createDocumentRequest, file)
     }
 
     @Operation(
@@ -222,22 +189,22 @@ class DocumentController(
     fun downloadDocument(
         @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
-        request: HttpServletRequest, response: HttpServletResponse
-    ) {
-        val traceId = getTraceIdOrGenerate(request)
+    ): ResponseEntity<InputStreamResource> {
+        val file = documentService.downloadDocument(id, payload)
 
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentController.downloadDocument",
-                traceId.toString(),
-                "Enter",
-                mapOf("id" to "$id")
+        val builder = ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(file.contentType))
+            .header(
+                HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.attachment()
+                    .filename(file.filename, StandardCharsets.UTF_8)
+                    .build()
+                    .toString()
             )
-        )
 
-        handleFileRequest(request, response, traceId) { rs: RequestSatellites ->
-            documentService.downloadDocument(id, payload, response, rs)
-        }
+        file.contentLength?.let(builder::contentLength)
+
+        return builder.body(file.resource)
     }
 
     @Operation(
@@ -268,21 +235,8 @@ class DocumentController(
     fun deleteDocument(
         @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentController.deleteDocument",
-                traceId.toString(),
-                "Enter"
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            documentService.changeDocumentStatus(id, DocumentStatus.DELETED, payload, rs)
-        }
+    ): MessageResponse {
+        return documentService.deleteDocument(id, payload)
     }
 
     @Operation(
@@ -313,21 +267,8 @@ class DocumentController(
     fun restoreDocument(
         @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentController.restoreDocument",
-                traceId.toString(),
-                "Enter"
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            documentService.changeDocumentStatus(id, DocumentStatus.CREATED, payload, rs)
-        }
+    ): MessageResponse {
+        return documentService.restoreDocument(id, payload)
     }
 
 }

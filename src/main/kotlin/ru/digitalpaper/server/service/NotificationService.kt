@@ -1,14 +1,10 @@
 package ru.digitalpaper.server.service
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Service
 import org.springframework.web.util.UriComponentsBuilder
 import ru.digitalpaper.server.config.properties.KeycloakClientProperties
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
 
 @Service
 class NotificationService(
@@ -16,23 +12,10 @@ class NotificationService(
     private val keycloakClientProperties: KeycloakClientProperties
 ) {
 
-    companion object {
-        private val logger: Logger = LoggerFactory.getLogger("grayLog")
-    }
-
     fun sendInvitation(
         email: String,
         organizationName: String,
-        rs: RequestSatellites
     ) {
-        logger.info(
-            ServerLogUtil.info(
-                "NotificationService.sendInvitation",
-                rs.traceId,
-                "Enter"
-            )
-        )
-
         val registrationUrl = UriComponentsBuilder
             .fromUriString("${keycloakClientProperties.serverUrl}/realms/${keycloakClientProperties.realm}/protocol/openid-connect/registrations")
             .queryParam("client_id", keycloakClientProperties.clientId)

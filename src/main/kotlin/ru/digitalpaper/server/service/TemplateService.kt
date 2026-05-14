@@ -1,32 +1,38 @@
 package ru.digitalpaper.server.service
 
-import jakarta.transaction.Transactional
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
-import ru.digitalpaper.server.dto.response.Response
+import ru.digitalpaper.server.dto.response.document.TemplateFieldResponse
 import ru.digitalpaper.server.dto.response.document.TemplateResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.exception.BadRequestException
+import ru.digitalpaper.server.exception.NotFoundException
 import ru.digitalpaper.server.model.document.DocumentTemplate
 import ru.digitalpaper.server.model.document.DocumentTemplateField
-import ru.digitalpaper.server.repository.TemplateFieldRepo
 import ru.digitalpaper.server.repository.TemplateRepo
 import ru.digitalpaper.server.type.StorageObjectType
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
+import java.util.UUID
 
 @Service
 class TemplateService(
     private val organizationService: OrganizationService,
     private val storageService: StorageService,
     private val templateRepo: TemplateRepo,
-    private val docxTemplateParser: DocxTemplateParser,
-    private val templateFieldRepo: TemplateFieldRepo
+    private val docxTemplateParser: DocxTemplateParser
 ) {
 
-    companion object {
-        private val logger: Logger = LoggerFactory.getLogger("grayLog")
+    @Transactional(readOnly = true)
+    fun getTemplateDetails(
+        payload: UserPayload,
+        templateId: UUID,
+    ): TemplateResponse {
+        val relation = organizationService.getRelationByUserId(payload.id)
+
+        val template = templateRepo.findByIdAndOrganizationId(templateId, relation.organization.id)
+            ?: throw NotFoundException("Шаблон не найден")
+
+        return template.toResponse()
     }
 
     @Transactional
@@ -34,25 +40,20 @@ class TemplateService(
         payload: UserPayload,
         file: MultipartFile,
         name: String,
-        rs: RequestSatellites
-    ): Response {
-        logger.info(
-            ServerLogUtil.info(
-                "TemplateService.upload",
-                rs.traceId,
-                "Enter"
-            )
-        )
+    ): TemplateResponse {
+        val relation = organizationService.getRelationByUserId(payload.id)
 
-        val relation = organizationService.getRelationByUserId(payload.id, rs)
+        val normalizedName = name.trim()
+        if (normalizedName.isBlank()) {
+            throw BadRequestException("Название шаблона не может быть пустым")
+        }
 
         val parsedFields = docxTemplateParser.parse(file)
 
         val storedFileInfo = storageService.upload(
-            file,
-            StorageObjectType.TEMPLATE,
-            relation.organization.id.toString(),
-            rs
+            file = file,
+            type = StorageObjectType.TEMPLATE,
+            ownerId = relation.organization.id.toString()
         )
 
         val template = DocumentTemplate(
@@ -64,9 +65,7 @@ class TemplateService(
 
         val result = templateRepo.save(template)
 
-
         val fields = parsedFields.mapIndexed { index, parsed ->
-            println("index: ${index}")
             DocumentTemplateField(
                 template = result,
                 key = parsed.key,
@@ -77,7 +76,8 @@ class TemplateService(
             )
         }
 
-        templateFieldRepo.saveAll(fields)
+        template.fields.addAll(fields)
+        templateRepo.save(template)
 
         return result.toResponse()
     }
@@ -88,8 +88,19 @@ class TemplateService(
             name = name,
             organizationId = organization.id,
             createdBy = author.id,
+            fields = fields.map { it.toResponse() },
             createdAt = createdAt,
             updatedAt = updatedAt
+        )
+
+    fun DocumentTemplateField.toResponse(): TemplateFieldResponse =
+        TemplateFieldResponse(
+            id = id,
+            key = key,
+            label = label,
+            type = type,
+            required = required,
+            sortOrder = sortOrder
         )
 }
 

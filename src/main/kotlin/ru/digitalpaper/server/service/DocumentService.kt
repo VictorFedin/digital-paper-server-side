@@ -1,16 +1,15 @@
 package ru.digitalpaper.server.service
 
-import jakarta.servlet.http.HttpServletResponse
-import jakarta.transaction.Transactional
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import org.springframework.core.io.InputStreamResource
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
-import ru.digitalpaper.server.dto.internal.DownloadedObject
+import ru.digitalpaper.server.dto.internal.DownloadedFile
 import ru.digitalpaper.server.dto.request.document.CreateDocumentRequest
 import ru.digitalpaper.server.dto.request.document.DocumentListFilter
+import ru.digitalpaper.server.dto.request.document.DocumentListRequest
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.common.PagedResponse
 import ru.digitalpaper.server.dto.response.document.DocumentListItem
@@ -18,16 +17,14 @@ import ru.digitalpaper.server.dto.response.document.DocumentResponse
 import ru.digitalpaper.server.dto.response.document.DocumentsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.exception.BadRequestException
+import ru.digitalpaper.server.exception.ForbiddenException
 import ru.digitalpaper.server.exception.NotFoundException
 import ru.digitalpaper.server.model.document.Document
 import ru.digitalpaper.server.model.document.holder.DocumentStatus
-import ru.digitalpaper.server.model.document.holder.DocumentType
 import ru.digitalpaper.server.repository.DocumentRepo
 import ru.digitalpaper.server.repository.UserOrganizationRepo
 import ru.digitalpaper.server.type.StorageObjectType
 import ru.digitalpaper.server.util.Utils
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.util.*
 
 @Service
@@ -37,104 +34,82 @@ class DocumentService(
     private val storageService: StorageService,
     private val userOrganizationRepo: UserOrganizationRepo
 ) {
-    companion object {
-        private val logger: Logger = LoggerFactory.getLogger("grayLog")
 
-    }
-
-    @Transactional
+    @Transactional(readOnly = true)
     fun getDocumentsPagedList(
-        page: Int,
-        size: Int,
         payload: UserPayload,
-        sortField: String,
-        sortDirection: Sort.Direction,
-        type: DocumentType? = null,
-        search: String? = null,
-        rs: RequestSatellites
+        request: DocumentListRequest,
     ): DocumentsPagedListResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentService.getDocumentsPagedList",
-                rs.traceId,
-                "Enter",
-                Pair("page", "$page"),
-                Pair("size", "$size")
-            )
-        )
-
-        val relation = organizationService.getRelationByUserId(payload.id, rs)
-
-        val pageNumber = Utils.safePage(page)
-        val pageSize = Utils.safeSize(size)
-        val pageSort = resolveDocumentSortField(sortField)
-
-        val pageable = PageRequest.of(
-            pageNumber,
-            pageSize,
-            Sort.by(sortDirection, pageSort)
-        )
-
-        val filter = buildFilter(relation.organization.id, type, search, false)
-
-        val docsPage = documentRepo.getDocumentsPagedList(filter, pageable)
-
-        return DocumentsPagedListResponse(
-            page = PagedResponse(
-                page = page,
-                size = size,
-                totalItems = docsPage.totalElements,
-                sortField = sortField,
-                sortDirection = sortDirection.name
-            ),
-            list = docsPage.content.map { it.toListItem() }.toList()
+        return getDocumentsPagedListInternal(
+            request = request,
+            payload = payload,
+            deleted = false,
         )
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getDeletedDocumentsPagedList(
-        page: Int,
-        size: Int,
         payload: UserPayload,
-        sortField: String,
-        sortDirection: Sort.Direction,
-        type: DocumentType? = null,
-        search: String? = null,
-        rs: RequestSatellites
+        request: DocumentListRequest,
     ): DocumentsPagedListResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentService.getDeletedDocumentsPagedList",
-                rs.traceId,
-                "Enter"
-            )
+        return getDocumentsPagedListInternal(
+            request = request,
+            payload = payload,
+            deleted = true,
+        )
+    }
+
+    private fun getDocumentsPagedListInternal(
+        request: DocumentListRequest,
+        payload: UserPayload,
+        deleted: Boolean,
+    ): DocumentsPagedListResponse {
+        val relation = organizationService.getRelationByUserId(payload.id)
+
+        val pageable = buildDocumentPageable(
+            page = request.page,
+            size = request.size,
+            sortField = request.sortField,
+            sortDirection = request.sortDirection,
         )
 
-        val relation = organizationService.getRelationByUserId(payload.id, rs)
+        val search = request.search?.trim()?.takeIf { it.isNotBlank() }
 
-        val pageNumber = Utils.safePage(page)
-        val pageSize = Utils.safeSize(size)
-        val pageSort = resolveDocumentSortField(sortField)
-
-        val pageable = PageRequest.of(
-            pageNumber,
-            pageSize,
-            Sort.by(sortDirection, pageSort)
+        val filter = DocumentListFilter(
+            organizationId = relation.organization.id,
+            type = request.type,
+            search = search,
+            deleted = deleted,
         )
-
-        val filter = buildFilter(relation.organization.id, type, search, true)
 
         val docsPage = documentRepo.getDocumentsPagedList(filter, pageable)
 
         return DocumentsPagedListResponse(
             page = PagedResponse(
-                page = page,
-                size = size,
+                page = request.page,
+                size = request.size,
                 totalItems = docsPage.totalElements,
-                sortField = sortField,
-                sortDirection = sortDirection.name
+                sortField = request.sortField,
+                sortDirection = request.sortDirection.name,
             ),
-            list = docsPage.content.map { it.toListItem() }.toList()
+            list = docsPage.content.map { it.toListItem() }
+        )
+    }
+
+    private fun buildDocumentPageable(
+        page: Int,
+        size: Int,
+        sortField: String,
+        sortDirection: Sort.Direction,
+    ): PageRequest {
+        val pageNumber = Utils.safePage(page)
+        val pageSize = Utils.safeSize(size)
+        val pageSort = resolveDocumentSortField(sortField)
+
+        return PageRequest.of(
+            pageNumber,
+            pageSize,
+            Sort.by(sortDirection, pageSort)
         )
     }
 
@@ -143,24 +118,13 @@ class DocumentService(
         payload: UserPayload,
         request: CreateDocumentRequest,
         file: MultipartFile,
-        rs: RequestSatellites
     ): DocumentResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentService.uploadDocument",
-                rs.traceId,
-                "Enter",
-                mapOf("request" to "$request")
-            )
-        )
-
-        val relation = organizationService.getRelationByUserId(payload.id, rs)
+        val relation = organizationService.getRelationByUserId(payload.id)
 
         val storedFileInfo = storageService.upload(
             file,
             StorageObjectType.DOCUMENT,
             relation.organization.id.toString(),
-            rs
         )
 
         val document = Document(
@@ -178,23 +142,12 @@ class DocumentService(
         return result.toResponse()
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun downloadDocument(
         id: UUID,
-        payload: UserPayload,
-        response: HttpServletResponse,
-        rs: RequestSatellites
-    ) {
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentService.downloadDocument",
-                rs.traceId,
-                "Enter",
-                mapOf("id" to "$id")
-            )
-        )
-
-        val relation = organizationService.getRelationByUserId(payload.id, rs)
+        payload: UserPayload
+    ): DownloadedFile {
+        val relation = organizationService.getRelationByUserId(payload.id)
 
         val document = documentRepo.getDocumentByIdAndOrganizationId(id, relation.organization.id)
             ?: throw NotFoundException("Документ не найден")
@@ -202,10 +155,54 @@ class DocumentService(
         val downloadObject = storageService.download(
             document.path,
             StorageObjectType.DOCUMENT,
-            rs
         )
 
-        writeFileResponse(downloadObject, response)
+        return DownloadedFile(
+            filename = document.name,
+            contentType = document.contentType,
+            resource = InputStreamResource(downloadObject.inputStream),
+            contentLength = downloadObject.size,
+        )
+    }
+
+    @Transactional
+    fun restoreDocument(
+        id: UUID,
+        payload: UserPayload
+    ): MessageResponse {
+        val document = documentRepo.getDocument(id)
+            ?: throw NotFoundException("Документ не найден")
+
+        userOrganizationRepo.findMembership(payload.id, document.organization.id)
+            ?: throw ForbiddenException("У вас нет доступа к этому документу")
+
+        if (document.status != DocumentStatus.DELETED) {
+            throw BadRequestException("Документ не находится в статусе удаления")
+        }
+
+        document.status = DocumentStatus.CREATED
+
+        return MessageResponse("Документ восстановлен")
+    }
+
+    @Transactional
+    fun deleteDocument(
+        id: UUID,
+        payload: UserPayload
+    ): MessageResponse {
+        val document = documentRepo.getDocument(id)
+            ?: throw NotFoundException("Документ не найден")
+
+        userOrganizationRepo.findMembership(payload.id, document.organization.id)
+            ?: throw ForbiddenException("У вас нет доступа к этому документу")
+
+        if (document.status == DocumentStatus.DELETED) {
+            return MessageResponse("Документ уже удален")
+        }
+
+        document.status = DocumentStatus.DELETED
+
+        return MessageResponse("Документ удален")
     }
 
     fun Document.toResponse(): DocumentResponse =
@@ -213,7 +210,12 @@ class DocumentService(
             id = id,
             name = name,
             createdAt = createdAt,
-            updatedAt = updatedAt
+            updatedAt = updatedAt,
+            type = type,
+            status = status,
+            contentType = contentType,
+            responsible = responsibleUser.getShortName(),
+            createdBy = createdBy.getShortName()
         )
 
     fun Document.toListItem(): DocumentListItem =
@@ -227,89 +229,15 @@ class DocumentService(
             updatedAt = updatedAt
         )
 
-    private fun buildFilter(
-        organizationId: UUID? = null,
-        type: DocumentType? = null,
-        search: String? = null,
-        deleted: Boolean? = null,
-    ): DocumentListFilter =
-        DocumentListFilter(
-            organizationId = organizationId,
-            type = type,
-            search = search,
-            deleted = deleted
-        )
-
     private fun resolveDocumentSortField(sortField: String): String {
         return when (sortField) {
             "id" -> "id"
-            "title" -> "title"
             "name" -> "name"
             "type" -> "type"
+            "status" -> "status"
             "createdAt" -> "createdAt"
             "updatedAt" -> "updatedAt"
             else -> "createdAt"
         }
     }
-
-    private fun writeFileResponse(
-        downloadObject: DownloadedObject,
-        response: HttpServletResponse
-    ) {
-        response.contentType = downloadObject.contentType
-
-        response.setHeader(
-            "Content-Disposition",
-            "attachment; filename=\"${downloadObject.originalFileName}\""
-        )
-
-        downloadObject.size.let {
-            response.setContentLengthLong(it)
-        }
-
-        downloadObject.inputStream.use { input ->
-            response.outputStream.use { output ->
-                input.copyTo(output)
-            }
-        }
-    }
-
-    @Transactional
-    fun changeDocumentStatus(
-        id: UUID,
-        status: DocumentStatus,
-        payload: UserPayload,
-        rs: RequestSatellites
-    ): MessageResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "DocumentService.changeDocumentStatus",
-                rs.traceId,
-                "Enter"
-            )
-        )
-
-        val document = documentRepo.getDocument(id)
-            ?: throw NotFoundException("Документ не найден")
-
-        userOrganizationRepo.findMembership(payload.id, document.organization.id)
-            ?: throw BadRequestException("У вас нет доступа к этому документу")
-
-        when (status) {
-            DocumentStatus.CREATED -> {
-                document.status = DocumentStatus.CREATED
-                documentRepo.save(document)
-
-                return MessageResponse("Документ восстановлен")
-            }
-            DocumentStatus.DELETED -> {
-                document.status = DocumentStatus.DELETED
-                documentRepo.save(document)
-
-                return MessageResponse("Документ удален")
-            }
-            else -> throw BadRequestException("В разработке")
-        }
-    }
-
 }

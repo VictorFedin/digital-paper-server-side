@@ -2,16 +2,13 @@ package ru.digitalpaper.server.service
 
 import io.minio.*
 import io.minio.http.Method
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.config.properties.MinioProperties
 import ru.digitalpaper.server.dto.internal.DownloadedObject
 import ru.digitalpaper.server.dto.internal.StoredObjectInfo
+import ru.digitalpaper.server.exception.InternalErrorException
 import ru.digitalpaper.server.type.StorageObjectType
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -22,27 +19,13 @@ class StorageService(
 ) {
 
     companion object {
-        private val logger: Logger = LoggerFactory.getLogger("grayLog")
         private const val SEPARATOR = "/"
     }
 
     fun getPublicOrResolvableUrl(
         bucket: String,
         objectKey: String,
-        rs: RequestSatellites
     ): String {
-        logger.info(
-            ServerLogUtil.info(
-                "StorageService.getPublicOrResolvableUrl",
-                rs.traceId,
-                "Enter",
-                mapOf(
-                    "bucket" to bucket,
-                    "objectKey" to objectKey,
-                )
-            )
-        )
-
         return try {
             val url = if (bucket == minioProperties.publicBucket) {
                 buildPublicUrl(bucket, objectKey)
@@ -67,17 +50,7 @@ class StorageService(
         file: MultipartFile,
         type: StorageObjectType,
         ownerId: String? = null,
-        rs: RequestSatellites
     ): StoredObjectInfo {
-        logger.info(
-            ServerLogUtil.info(
-                "StorageService.upload",
-                rs.traceId,
-                "Enter",
-                mapOf("type" to type.toString())
-            )
-        )
-
         validateFile(file, type)
 
         val bucket = resolveBucket(type)
@@ -102,20 +75,6 @@ class StorageService(
                     .build()
             )
 
-            logger.info(
-                ServerLogUtil.info(
-                    "StorageService.upload",
-                    rs.traceId,
-                    "File uploaded to Minio",
-                    mapOf(
-                        "bucket" to bucket,
-                        "objectKey" to objectKey,
-                        "etage" to response.etag(),
-                        "versionId" to response.versionId()
-                    )
-                )
-            )
-
             return StoredObjectInfo(
                 bucket = bucket,
                 objectKey = objectKey,
@@ -131,20 +90,7 @@ class StorageService(
     fun download(
         objectKey: String,
         type: StorageObjectType,
-        rs: RequestSatellites
     ): DownloadedObject {
-        logger.info(
-            ServerLogUtil.info(
-                "StorageService.download",
-                rs.traceId,
-                "Enter",
-                mapOf(
-                    "objectKey" to objectKey,
-                    "type" to "$type"
-                )
-            )
-        )
-
         val bucket = resolveBucket(type)
 
         try {
@@ -172,6 +118,24 @@ class StorageService(
             )
         } catch (e: Exception) {
             throw e
+        }
+    }
+
+    fun delete(
+        objectKey: String,
+        type: StorageObjectType
+    ) {
+        val bucket = resolveBucket(type)
+
+        try {
+            minioClient.removeObject(
+                RemoveObjectArgs.builder()
+                    .bucket(bucket)
+                    .`object`(objectKey)
+                    .build()
+            )
+        } catch (e: Exception) {
+            throw InternalErrorException("Возникла ошибка при удалении файла")
         }
     }
 

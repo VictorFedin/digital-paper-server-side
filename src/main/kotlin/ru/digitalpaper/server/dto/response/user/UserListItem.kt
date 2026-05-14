@@ -1,9 +1,8 @@
 package ru.digitalpaper.server.dto.response.user
 
-import ru.digitalpaper.server.dto.response.Response
 import java.time.LocalDate
 import java.time.ZonedDateTime
-import java.util.UUID
+import java.util.*
 
 data class UserListItem(
     val id: UUID,
@@ -14,4 +13,4 @@ data class UserListItem(
     val birthday: LocalDate? = null,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime
-) : Response()
+)

@@ -1,8 +1,8 @@
 package ru.digitalpaper.server.dto.response.user
 
-import ru.digitalpaper.server.dto.response.Response
+import java.time.LocalDate
 import java.time.ZonedDateTime
-import java.util.UUID
+import java.util.*
 
 data class UserProfileResponse(
     val id: UUID,
@@ -10,7 +10,8 @@ data class UserProfileResponse(
     val firstName: String,
     val lastName: String,
     val middleName: String,
+    val birthday: LocalDate? = null,
     val avatar: AvatarResponse? = null,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime
-) : Response()
+)

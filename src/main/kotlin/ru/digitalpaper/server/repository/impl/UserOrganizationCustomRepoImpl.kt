@@ -12,6 +12,8 @@ import ru.digitalpaper.server.model.organization.Organization
 import ru.digitalpaper.server.model.organization.UserOrganization
 import ru.digitalpaper.server.model.user.User
 import ru.digitalpaper.server.repository.UserOrganizationCustomRepo
+import ru.digitalpaper.server.util.Utils
+import java.time.ZonedDateTime
 import java.util.*
 
 @Repository
@@ -121,21 +123,18 @@ class UserOrganizationCustomRepoImpl(
         userJoin: Join<UserOrganization, User>,
         pageable: Pageable
     ) {
-        if (pageable.sort.isUnsorted) {
-            query.orderBy(cb.asc(userJoin.get<String>("email")))
-            return
-        }
-
-        val orders = pageable.sort.map { sortOrder ->
-            val path = userJoin.get<Any>(sortOrder.property)
-
-            if (sortOrder.isAscending) {
-                cb.asc(path)
-            } else {
-                cb.desc(path)
-            }
-        }.toList()
-
-        query.orderBy(orders)
+        Utils.applySorting(
+            cb = cb,
+            query = query,
+            pageable = pageable,
+            defaultOrder = cb.asc(userJoin.get<String>("email")),
+            sortMapping = mapOf(
+                "email" to userJoin.get<String>("email"),
+                "firstName" to userJoin.get<String>("firstName"),
+                "lastName" to userJoin.get<String>("lastName"),
+                "middleName" to userJoin.get<String>("middleName"),
+                "createdAt" to userJoin.get<ZonedDateTime>("createdAt"),
+            )
+        )
     }
 }

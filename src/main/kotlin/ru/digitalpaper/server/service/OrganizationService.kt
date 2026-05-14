@@ -1,11 +1,9 @@
 package ru.digitalpaper.server.service
 
-import jakarta.transaction.Transactional
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
@@ -29,8 +27,6 @@ import ru.digitalpaper.server.repository.OrganizationRepo
 import ru.digitalpaper.server.repository.UserOrganizationRepo
 import ru.digitalpaper.server.repository.UserRepo
 import ru.digitalpaper.server.util.Utils
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.util.*
 
 @Service
@@ -38,30 +34,15 @@ class OrganizationService(
     private val organizationRepo: OrganizationRepo,
     private val userRepo: UserRepo,
     private val userOrganizationRepo: UserOrganizationRepo,
-    private val invitationService: InvitationService
+    private val invitationService: InvitationService,
+    private val userService: UserService
 ) {
-
-    companion object {
-        private val logger: Logger = LoggerFactory.getLogger("grayLog")
-    }
-
     @Transactional
     fun addOrganization(
         request: AddOrganizationRequest,
-        payload: UserPayload,
-        rs: RequestSatellites
+        payload: UserPayload
     ): OrganizationResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.addOrganization",
-                rs.traceId,
-                "Enter",
-                mapOf("request" to "$request")
-            )
-        )
-
-        val user = userRepo.getUserBySub(payload.sub)
-            ?: throw NotFoundException("Пользователь не найден")
+        val user = userService.getCurrentUser(payload)
 
         val newOrganization = Organization(
             name = request.name,
@@ -79,105 +60,74 @@ class OrganizationService(
         return organization.toResponse()
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getOrganizationDetails(
         id: UUID,
-        payload: UserPayload,
-        rs: RequestSatellites
+        payload: UserPayload
     ): OrganizationResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.getOrganizationDetails",
-                rs.traceId,
-                "Enter",
-                mapOf("id" to "$id")
-            )
-        )
-
-        val actor = userRepo.getUserBySub(payload.sub)
-            ?: throw NotFoundException("Пользователь не найден")
-
-        val membership = userOrganizationRepo.findMembership(actor.id, id)
-            ?: throw ForbiddenException("Нет доступа к организации")
+        val membership = getMembershipWithAccessOrThrow(payload, id)
 
         return membership.organization.toResponse()
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getMyOrganizationsList(
         payload: UserPayload,
-        pagedRequest: PagedRequest,
-        rs: RequestSatellites
+        request: PagedRequest,
     ): OrganizationsPagedListResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.getMyOrganizationsList",
-                rs.traceId,
-                "Enter",
-                mapOf("request" to "$pagedRequest")
-            )
-        )
+        val user = userService.getCurrentUser(payload)
 
-        val user = userRepo.getUserById(payload.id)
-            ?: throw NotFoundException("Пользователь не найден")
+        val pageNumber = Utils.safePage(request.page)
+        val pageSize = Utils.safeSize(request.size)
+        val direction = Utils.safeDirection(request.sortDirection)
+        val sortField = resolveOrganizationSortField(request.sortField)
 
-        val pageNumber = Utils.safePage(pagedRequest.page)
-        val pageSize = Utils.safeSize(pagedRequest.size)
-        val direction = Utils.safeDirection(pagedRequest.sortDirection)
         val pageable = PageRequest.of(
             pageNumber,
             pageSize,
-            Sort.by(direction, pagedRequest.sortField)
+            Sort.by(direction, sortField)
         )
 
         val orgPage = userOrganizationRepo.getOrganizationsByUserId(user.id, pageable)
 
         return OrganizationsPagedListResponse(
             page = PagedResponse(
-                page = pagedRequest.page,
-                size = pagedRequest.size,
+                page = pageNumber,
+                size = pageSize,
                 totalItems = orgPage.totalElements,
-                sortField = pagedRequest.sortField,
+                sortField = sortField,
                 sortDirection = direction.name
             ),
-            list = orgPage.content.map { it.toListItem() }.toList()
+            list = orgPage.content.map { it.toListItem() }
         )
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getOrganizationsList(
-        pagedRequest: PagedRequest,
-        rs: RequestSatellites
+        request: PagedRequest,
     ): OrganizationsPagedListResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.getOrganizationsList",
-                rs.traceId,
-                "Enter",
-                mapOf("request" to "$pagedRequest")
-            )
-        )
+        val pageNumber = Utils.safePage(request.page)
+        val pageSize = Utils.safeSize(request.size)
+        val direction = Utils.safeDirection(request.sortDirection)
+        val sortField = resolveOrganizationSortField(request.sortField)
 
-        val pageNumber = Utils.safePage(pagedRequest.page)
-        val pageSize = Utils.safeSize(pagedRequest.size)
-        val direction = Utils.safeDirection(pagedRequest.sortDirection)
         val pageable = PageRequest.of(
             pageNumber,
             pageSize,
-            Sort.by(direction, pagedRequest.sortField)
+            Sort.by(direction, sortField)
         )
 
         val orgPage = organizationRepo.getOrganizations(pageable)
 
         return OrganizationsPagedListResponse(
             page = PagedResponse(
-                page = pagedRequest.page,
-                size = pagedRequest.size,
+                page = pageNumber,
+                size = pageSize,
                 totalItems = orgPage.totalElements,
-                sortField = pagedRequest.sortField,
+                sortField = sortField,
                 sortDirection = direction.name
             ),
-            list = orgPage.content.map { it.toListItem() }.toList()
+            list = orgPage.content.map { it.toListItem() }
         )
     }
 
@@ -186,44 +136,35 @@ class OrganizationService(
         payload: UserPayload,
         id: UUID,
         request: AddUserToOrganizationRequest,
-        rs: RequestSatellites
     ): MessageResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.addUserToOrganization",
-                rs.traceId,
-                "Enter",
-                Pair("id", "$id"),
-                Pair("request", "$request")
-            )
-        )
+        val membership = getManageableMembershipOrThrow(payload, id)
+        val actor = membership.user
+        val organization = membership.organization
+        val email = request.email.trim().lowercase()
 
-        val actor = userRepo.getUserBySub(payload.sub)
-            ?: throw NotFoundException("Пользователь не найден")
-
-        val membership = userOrganizationRepo.findMembership(actor.id, id)
-            ?: throw ForbiddenException("Нет доступа к организации")
-
-        if (!membership.role.canManageOrganization())
-            throw ForbiddenException("Недостаточно прав")
-
-        val userToAdd = userRepo.getUserByEmail(request.email)
+        val userToAdd = userRepo.getUserByEmail(email)
 
         if (userToAdd != null) {
-            if (userOrganizationRepo.existUserInOrganization(userToAdd.id, membership.organization.id))
+            if (userOrganizationRepo.existUserInOrganization(userToAdd.id, organization.id)) {
                 throw BadRequestException("Пользователь уже состоит в организации")
+            }
 
-            val organization = membership.organization
-
-            organization.addMember(user = userToAdd, role = UserRole.EMPLOYEE)
-            organizationRepo.save(organization)
+            organization.addMember(
+                user = userToAdd,
+                role = UserRole.EMPLOYEE
+            )
 
             return MessageResponse("Пользователь добавлен в организацию '${organization.name}'")
-        } else {
-            invitationService.invite(request.email, membership.organization, actor, rs)
-
-            return MessageResponse("Пользователь приглашен в организацию '${membership.organization.name}'")
         }
+
+        invitationService.invite(
+            email = email,
+            organization = organization,
+            inviter = actor
+        )
+
+        return MessageResponse("Пользователь приглашен в организацию '${organization.name}'")
+
     }
 
     @Transactional
@@ -231,31 +172,13 @@ class OrganizationService(
         id: UUID,
         request: UpdateOrganizationRequest,
         payload: UserPayload,
-        rs: RequestSatellites
     ): OrganizationResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.updateOrganization",
-                rs.traceId,
-                "Enter",
-                Pair("id", "$id"),
-                Pair("request", "$request")
-            )
-        )
-
-        val actor = userRepo.getUserBySub(payload.sub)
-            ?: throw NotFoundException("Пользователь не найден")
-
-        val membership = userOrganizationRepo.findMembership(actor.id, id)
-            ?: throw ForbiddenException("Нет доступа к организации")
-
-        if (!membership.role.canManageOrganization())
-            throw ForbiddenException("Недостаточно прав")
-
+        val membership = getManageableMembershipOrThrow(payload, id)
         val organization = membership.organization
 
-        if (!organization.canBeEdited())
+        if (!organization.canBeEdited()) {
             throw BadRequestException("Статус модерации - '${organization.status}'. В редактировании отказано")
+        }
 
         organization.updateDetails(
             name = request.name,
@@ -273,72 +196,50 @@ class OrganizationService(
     }
 
     @Transactional
-    fun changeOrganizationStatus(
+    fun deleteOrganization(
         id: UUID,
-        status: ModerationStatus,
         payload: UserPayload,
-        rs: RequestSatellites
     ): MessageResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.changeOrganizationStatus",
-                rs.traceId,
-                "Enter"
-            )
-        )
-
-        val actor = userRepo.getUserBySub(payload.sub)
-            ?: throw NotFoundException("Пользователь не найден")
-
-        val membership = userOrganizationRepo.findMembership(actor.id, id)
-            ?: throw ForbiddenException("Нет доступа к организации")
-
-        if (!membership.role.canManageOrganization())
-            throw ForbiddenException("Недостаточно прав")
-
+        val membership = getManageableMembershipOrThrow(payload, id)
         val organization = membership.organization
 
-
-        organizationRepo.save(organization)
-
-        when (status) {
-            ModerationStatus.DELETED -> {
-                organization.status = status
-                organizationRepo.save(membership.organization)
-
-                return MessageResponse("Организация удалена")
-            }
-            ModerationStatus.NEW -> {
-                organization.status = status
-                organizationRepo.save(membership.organization)
-
-                return MessageResponse("Организация восстановлена")
-            }
-            else -> throw BadRequestException("Операция не может быть выполнена")
+        if (organization.status == ModerationStatus.DELETED) {
+            return MessageResponse("Организация уже удалена")
         }
 
+        organization.status = ModerationStatus.DELETED
+
+        return MessageResponse("Организация удалена")
     }
 
     @Transactional
+    fun restoreOrganization(
+        id: UUID,
+        payload: UserPayload,
+    ): MessageResponse {
+        val membership = getManageableMembershipOrThrow(payload, id)
+        val organization = membership.organization
+
+        if (organization.status != ModerationStatus.DELETED) {
+            throw BadRequestException("Организация не находится в статусе удаления")
+        }
+
+        organization.status = ModerationStatus.NEW
+
+        return MessageResponse("Организация восстановлена")
+    }
+
+    @Transactional(readOnly = true)
     fun getOrganizationUsers(
         id: UUID,
+        payload: UserPayload,
         page: Int,
         size: Int,
         sortField: String,
         sortDirection: Sort.Direction,
         search: String? = null,
-        rs: RequestSatellites
     ): UsersPagedListResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.getOrganizationUsers",
-                rs.traceId,
-                "Enter",
-                Pair("id", "$id"),
-                Pair("page", "$page"),
-                Pair("size", "$size"),
-            )
-        )
+        getMembershipWithAccessOrThrow(payload, id)
 
         val pageNumber = Utils.safePage(page)
         val pageSize = Utils.safeSize(size)
@@ -350,57 +251,51 @@ class OrganizationService(
             Sort.by(sortDirection, pageSort)
         )
 
-        val filter = buildFilter(id, search)
+        val filter = buildFilter(
+            organizationId = id,
+            search = search?.trim()?.takeIf { it.isNotBlank() }
+        )
 
         val usersPage = userOrganizationRepo.getUsersByOrganizationId(filter, pageable)
 
         return UsersPagedListResponse(
             page = PagedResponse(
-                page = page,
-                size = size,
+                page = pageNumber,
+                size = pageSize,
                 totalItems = usersPage.totalElements,
-                sortField = sortField,
+                sortField = pageSort,
                 sortDirection = sortDirection.name
             ),
-            list = usersPage.content.map { it.toListItem() }.toList()
+            list = usersPage.content.map { it.toListItem() }
         )
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getOrganizationUsersBirthdays(
+        payload: UserPayload,
         organizationId: UUID,
-        month: Double,
-        rs: RequestSatellites
+        month: Int,
     ): UsersListResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.getOrganizationUsersWithBirthdayInCurrentMonth",
-                rs.traceId,
-                "Enter",
-            )
+        getMembershipWithAccessOrThrow(payload, organizationId)
+
+        if (month !in 1..12) {
+            throw BadRequestException("Месяц должен быть в диапазоне от 1 до 12")
+        }
+
+        val users = userOrganizationRepo.getUsersWithBirthdayInMonth(
+            organizationId = organizationId,
+            month = month
         )
-
-        organizationRepo.getOrganization(organizationId)
-            ?: throw NotFoundException("Организация не найдена")
-
-        val users = userOrganizationRepo.getUsersWithBirthdayInMonth(organizationId, month)
 
         return UsersListResponse(
             list = users.map { it.toListItem() }
         )
     }
 
-    @Transactional
-    fun getRelationByUserId(id: UUID, rs: RequestSatellites): UserOrganization {
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationService.getRelationByUserId",
-                rs.traceId,
-                "Enter",
-                Pair("id", "$id")
-            )
-        )
-
+    @Transactional(readOnly = true)
+    fun getRelationByUserId(
+        id: UUID,
+    ): UserOrganization {
         return userOrganizationRepo.getRelationByUserId(id)
             ?: throw NotFoundException("Пользователь не состоит ни в одной организации")
     }
@@ -424,5 +319,55 @@ class OrganizationService(
             organizationId = organizationId,
             search = search
         )
+
+    private fun getMembershipOrThrow(
+        userId: UUID,
+        organizationId: UUID,
+    ): UserOrganization {
+        return userOrganizationRepo.findMembership(userId, organizationId)
+            ?: throw ForbiddenException("Нет доступа к организации")
+    }
+
+    private fun getManageableMembershipOrThrow(
+        payload: UserPayload,
+        organizationId: UUID,
+    ): UserOrganization {
+        val actor = userService.getCurrentUser(payload)
+
+        val membership = getMembershipOrThrow(
+            userId = actor.id,
+            organizationId = organizationId,
+        )
+
+        if (!membership.role.canManageOrganization()) {
+            throw ForbiddenException("Недостаточно прав")
+        }
+
+        return membership
+    }
+
+    private fun getMembershipWithAccessOrThrow(
+        payload: UserPayload,
+        organizationId: UUID,
+    ): UserOrganization {
+        val actor = userService.getCurrentUser(payload)
+
+        return getMembershipOrThrow(
+            userId = actor.id,
+            organizationId = organizationId,
+        )
+    }
+
+    private fun resolveOrganizationSortField(sortField: String): String {
+        return when (sortField) {
+            "id" -> "id"
+            "name" -> "name"
+            "email" -> "email"
+            "status" -> "status"
+            "createdAt" -> "createdAt"
+            "updatedAt" -> "updatedAt"
+            else -> "createdAt"
+        }
+    }
 
 }

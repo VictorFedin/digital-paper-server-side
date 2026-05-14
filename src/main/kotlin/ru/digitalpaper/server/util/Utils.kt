@@ -1,75 +1,14 @@
 package ru.digitalpaper.server.util
 
-import com.google.gson.*
+import jakarta.persistence.criteria.CriteriaBuilder
+import jakarta.persistence.criteria.CriteriaQuery
+import jakarta.persistence.criteria.Expression
+import jakarta.persistence.criteria.Order
+import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
-import java.lang.reflect.Type
-import java.time.LocalDate
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
+import ru.digitalpaper.server.exception.BadRequestException
 
 object Utils {
-
-    private val gson = GsonBuilder()
-        .setExclusionStrategies(object : ExclusionStrategy {
-            override fun shouldSkipClass(clazz: Class<*>): Boolean {
-                return false
-            }
-
-            override fun shouldSkipField(f: FieldAttributes): Boolean {
-                return f.name.equals("unknownFields")
-            }
-        })
-        .registerTypeAdapter(LocalDate::class.java, LocalDateTypeAdapter())
-        .registerTypeAdapter(ZonedDateTime::class.java, ZonedDateTypeAdapter())
-        .setPrettyPrinting()
-        .disableHtmlEscaping()
-        .create()
-
-    class LocalDateTypeAdapter : JsonSerializer<LocalDate?>, JsonDeserializer<LocalDate?> {
-        private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-
-        override fun serialize(
-            src: LocalDate?,
-            typeOfSrc: Type?,
-            context: JsonSerializationContext?
-        ): JsonElement {
-            return JsonPrimitive(src?.format(formatter))
-        }
-
-        override fun deserialize(
-            json: JsonElement,
-            typeOfT: Type?,
-            context: JsonDeserializationContext?
-        ): LocalDate {
-            return LocalDate.parse(json.asString, formatter)
-        }
-    }
-
-    class ZonedDateTypeAdapter : JsonSerializer<ZonedDateTime?>, JsonDeserializer<ZonedDateTime?> {
-        private val formatter = DateTimeFormatter.ofPattern("yyyy-MMM-dd HH:mm z")
-        override fun serialize(
-            src: ZonedDateTime?,
-            typeOfSrc: Type?,
-            context: JsonSerializationContext?
-        ): JsonElement {
-            return JsonPrimitive(src?.format(formatter))
-        }
-
-        @Throws(JsonParseException::class)
-        override fun deserialize(
-            json: JsonElement,
-            typeOfT: Type?,
-            context: JsonDeserializationContext?
-        ): ZonedDateTime? {
-            return ZonedDateTime.parse(json.asString, formatter)
-        }
-    }
-
-    fun logToJson(
-        obj: Any
-    ): String {
-        return gson.toJson(obj)
-    }
 
     fun safePage(
         page: Int
@@ -94,4 +33,31 @@ object Utils {
             Sort.Direction.ASC
         else Sort.Direction.DESC
     }
+
+    fun <T> applySorting(
+        cb: CriteriaBuilder,
+        query: CriteriaQuery<T>,
+        pageable: Pageable,
+        defaultOrder: Order,
+        sortMapping: Map<String, Expression<out Comparable<*>>>,
+    ) {
+        if (pageable.sort.isUnsorted) {
+            query.orderBy(defaultOrder)
+            return
+        }
+
+        val orders = pageable.sort.map { sortOrder ->
+            val expression = sortMapping[sortOrder.property]
+                ?: throw BadRequestException("Unsupported sort field: ${sortOrder.property}")
+
+            if (sortOrder.isAscending) {
+                cb.asc(expression)
+            } else {
+                cb.desc(expression)
+            }
+        }.toList()
+
+        query.orderBy(orders)
+    }
+
 }

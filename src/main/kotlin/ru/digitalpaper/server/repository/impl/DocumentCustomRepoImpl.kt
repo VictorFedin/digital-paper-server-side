@@ -16,6 +16,7 @@ import ru.digitalpaper.server.model.document.holder.DocumentStatus
 import ru.digitalpaper.server.model.document.holder.DocumentType
 import ru.digitalpaper.server.model.organization.Organization
 import ru.digitalpaper.server.repository.DocumentCustomRepo
+import ru.digitalpaper.server.util.Utils
 import java.time.ZonedDateTime
 import java.util.*
 
@@ -132,22 +133,18 @@ class DocumentCustomRepoImpl(
         root: Root<Document>,
         pageable: Pageable
     ) {
-        if (pageable.sort.isUnsorted) {
-            query.orderBy(cb.desc(root.get<ZonedDateTime>("createdAt")))
-            return
-        }
-
-        val orders = pageable.sort.map { sortOrder ->
-            val path = root.get<Any>(sortOrder.property)
-
-            if (sortOrder.isAscending) {
-                cb.asc(path)
-            } else {
-                cb.desc(path)
-            }
-        }.toList()
-
-        query.orderBy(orders)
+        Utils.applySorting(
+            cb = cb,
+            query = query,
+            pageable = pageable,
+            defaultOrder = cb.desc(root.get<ZonedDateTime>("createdAt")),
+            sortMapping = mapOf(
+                "name" to root.get<String>("name"),
+                "type" to root.get<DocumentType>("type"),
+                "status" to root.get<DocumentStatus>("status"),
+                "createdAt" to root.get<ZonedDateTime>("createdAt"),
+            )
+        )
     }
 
 }

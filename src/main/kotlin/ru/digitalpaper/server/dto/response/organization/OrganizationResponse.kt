@@ -1,10 +1,9 @@
 package ru.digitalpaper.server.dto.response.organization
 
-import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.model.organization.holder.Industry
 import ru.digitalpaper.server.model.organization.holder.ModerationStatus
 import java.time.ZonedDateTime
-import java.util.UUID
+import java.util.*
 
 data class OrganizationResponse(
     val id: UUID,
@@ -16,4 +15,4 @@ data class OrganizationResponse(
     val status: ModerationStatus,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime
-) : Response()
+)

@@ -5,18 +5,15 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.data.domain.Sort
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
-import ru.digitalpaper.server.controller.base.CommonController
+import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
-import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.dto.response.common.ErrorResponse
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.organization.OrganizationResponse
@@ -24,10 +21,7 @@ import ru.digitalpaper.server.dto.response.organization.OrganizationsPagedListRe
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.dto.response.user.UsersListResponse
 import ru.digitalpaper.server.dto.response.user.UsersPagedListResponse
-import ru.digitalpaper.server.model.organization.holder.ModerationStatus
 import ru.digitalpaper.server.service.OrganizationService
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.util.*
 
 @RestController
@@ -35,11 +29,11 @@ import java.util.*
 @Validated
 class OrganizationController(
     private val organizationService: OrganizationService
-) : CommonController() {
+) {
 
     @Operation(
         summary = "Получить детали организации",
-        description = "Возвращает детали организации по айди"
+        description = "Возвращает детали организации по уникальному идентификатору"
     )
     @ApiResponses(
         value = [
@@ -65,22 +59,8 @@ class OrganizationController(
     fun getOrganizationDetails(
         @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.getOrganizationDetails",
-                traceId.toString(),
-                "Enter",
-                Pair("id", "$id")
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.getOrganizationDetails(id, payload, rs)
-        }
+    ): OrganizationResponse {
+        return organizationService.getOrganizationDetails(id, payload)
     }
 
     @Operation(
@@ -114,33 +94,18 @@ class OrganizationController(
         @RequestParam(required = false) size: Int = 10,
         @RequestParam(required = false) sortField: String = "createdAt",
         @RequestParam(required = false) sortDirection: String = "DESC",
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.getMyOrganizationsList",
-                traceId.toString(),
-                "Enter",
-                mapOf(
-                    "page" to "$page",
-                    "size" to "$size",
-                    "sortField" to sortField,
-                    "sortDirection" to sortDirection
-                )
-            )
+    ): OrganizationsPagedListResponse {
+        val request = PagedRequest(
+            page = page,
+            size = size,
+            sortField = sortField,
+            sortDirection = sortDirection
         )
 
-        val pagedRequest = buildPagedRequest(page, size, sortField, sortDirection)
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.getMyOrganizationsList(
-                payload,
-                pagedRequest,
-                rs
-            )
-        }
+        return organizationService.getMyOrganizationsList(
+            payload,
+            request
+        )
     }
 
     @Operation(
@@ -173,32 +138,16 @@ class OrganizationController(
         @RequestParam(required = false) size: Int = 10,
         @RequestParam(required = false) sortField: String = "createdBy",
         @RequestParam(required = false) sortDirection: String = "DESC",
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.getOrganizationsList",
-                traceId.toString(),
-                "Enter",
-                mapOf(
-                    "page" to "$page",
-                    "size" to "$size",
-                    "sortField" to sortField,
-                    "sortDirection" to sortDirection
-                )
-            )
+    ): OrganizationsPagedListResponse {
+        val request = PagedRequest(
+            page = page,
+            size = size,
+            sortField = sortField,
+            sortDirection = sortDirection
         )
-
-        val pagedRequest = buildPagedRequest(page, size, sortField, sortDirection)
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.getOrganizationsList(
-                pagedRequest,
-                rs
-            )
-        }
+        return organizationService.getOrganizationsList(
+            request
+        )
     }
 
     @Operation(
@@ -229,22 +178,8 @@ class OrganizationController(
     fun addOrganization(
         @AuthenticationPrincipal payload: UserPayload,
         @Valid @RequestBody addOrganizationRequest: AddOrganizationRequest,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.addOrganization",
-                traceId.toString(),
-                "Enter",
-                Pair("request", addOrganizationRequest)
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.addOrganization(addOrganizationRequest, payload, rs)
-        }
+    ): OrganizationResponse {
+        return organizationService.addOrganization(addOrganizationRequest, payload)
     }
 
     @Operation(
@@ -276,23 +211,8 @@ class OrganizationController(
         @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
         @Valid @RequestBody updateOrganizationRequest: UpdateOrganizationRequest,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.updateOrganization",
-                traceId.toString(),
-                "Enter",
-                Pair("id", "$id"),
-                Pair("request", "$updateOrganizationRequest")
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.updateOrganization(id, updateOrganizationRequest, payload, rs)
-        }
+    ): OrganizationResponse {
+        return organizationService.updateOrganization(id, updateOrganizationRequest, payload)
     }
 
     @Operation(
@@ -322,23 +242,9 @@ class OrganizationController(
     @PostMapping(value = ["/{id}/delete"])
     fun deleteOrganization(
         @AuthenticationPrincipal payload: UserPayload,
-        @PathVariable id: UUID,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.deleteOrganization",
-                traceId.toString(),
-                "Enter",
-                Pair("id", "$id")
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.changeOrganizationStatus(id, ModerationStatus.DELETED, payload, rs)
-        }
+        @PathVariable id: UUID
+    ): MessageResponse {
+        return organizationService.deleteOrganization(id, payload)
     }
 
     @Operation(
@@ -365,26 +271,12 @@ class OrganizationController(
             )
         ]
     )
-    @PostMapping(value = ["/{id}/restore"])
+    @PatchMapping(value = ["/{id}/restore"])
     fun restoreOrganization(
         @AuthenticationPrincipal payload: UserPayload,
-        @PathVariable id: UUID,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.restoreOrganization",
-                traceId.toString(),
-                "Enter",
-                Pair("id", "$id")
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.changeOrganizationStatus(id, ModerationStatus.NEW, payload, rs)
-        }
+        @PathVariable id: UUID
+    ): MessageResponse {
+        return organizationService.restoreOrganization(id, payload)
     }
 
     @Operation(
@@ -416,22 +308,8 @@ class OrganizationController(
         @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
         @Valid @RequestBody addUserToOrganizationRequest: AddUserToOrganizationRequest,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.addUserToOrganization",
-                traceId.toString(),
-                "Enter",
-                Pair("request", addUserToOrganizationRequest)
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.addUserToOrganization(payload, id, addUserToOrganizationRequest, rs)
-        }
+    ): MessageResponse {
+        return organizationService.addUserToOrganization(payload, id, addUserToOrganizationRequest)
     }
 
     @Operation(
@@ -460,28 +338,15 @@ class OrganizationController(
     )
     @GetMapping(value = ["/{id}/users"])
     fun getOrganizationUsers(
+        @AuthenticationPrincipal payload: UserPayload,
         @PathVariable id: UUID,
         @RequestParam page: Int = 1,
         @RequestParam size: Int = 10,
         @RequestParam sortField: String = "createdAt",
         @RequestParam sortDirection: Sort.Direction = Sort.Direction.DESC,
         @RequestParam search: String? = null,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.getOrganizationUsers",
-                traceId.toString(),
-                "Enter",
-                Pair("id", "$id")
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.getOrganizationUsers(id, page, size, sortField, sortDirection, search, rs)
-        }
+    ): UsersPagedListResponse {
+        return organizationService.getOrganizationUsers(id, payload, page, size, sortField, sortDirection, search)
     }
 
     @Operation(
@@ -510,23 +375,10 @@ class OrganizationController(
     )
     @GetMapping(value = ["/{id}/users/birthday"])
     fun getOrganizationUsersBirthdays(
-        @PathVariable id: UUID,
-        @RequestParam month: Double,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "OrganizationController.getOrganizationUsersBirthdays",
-                traceId.toString(),
-                "Enter",
-                mapOf("month" to "$month")
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            organizationService.getOrganizationUsersBirthdays(id, month, rs)
-        }
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable("id") organizationId: UUID,
+        @RequestParam month: Int,
+    ): UsersListResponse {
+        return organizationService.getOrganizationUsersBirthdays(payload, organizationId, month)
     }
 }

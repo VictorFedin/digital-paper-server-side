@@ -1,76 +1,94 @@
 package ru.digitalpaper.server.controller.user
 
 import io.swagger.v3.oas.annotations.Operation
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
 import org.springframework.http.MediaType
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import ru.digitalpaper.server.controller.base.CommonController
-import ru.digitalpaper.server.dto.response.Response
+import ru.digitalpaper.server.controller.base.CommonApiResponses
+import ru.digitalpaper.server.dto.request.user.UpdateUserProfileRequest
+import ru.digitalpaper.server.dto.response.user.AvatarResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
+import ru.digitalpaper.server.dto.response.user.UserProfileResponse
 import ru.digitalpaper.server.service.UserService
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
 
+@CommonApiResponses
 @RestController
 @RequestMapping(value = ["/api/v1/user"])
 class UserController(
     private val userService: UserService
-) : CommonController() {
+) {
 
     @Operation(
         summary = "Получить профиль пользователя",
         description = "Возвращает профиль текущего пользователя"
     )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Операция успешна",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = UserProfileResponse::class)
+        )],
+    )
     @GetMapping(value = ["/profile"])
     fun getUserProfile(
+        @AuthenticationPrincipal payload: UserPayload
+    ): UserProfileResponse {
+        return userService.getUserProfile(payload)
+    }
+
+    @Operation(
+        summary = "Обновить профиль пользователя",
+        description = "Обновляет данные профиля текущего пользователя"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Операция успешна",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = UserProfileResponse::class)
+        )],
+    )
+    @PatchMapping(value = ["/profile"])
+    fun updateUserProfile(
         @AuthenticationPrincipal payload: UserPayload,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
-
-        logger.info(
-            ServerLogUtil.info(
-                "UserController.getUserProfile",
-                traceId.toString(),
-                "Enter",
-                Pair("payload", payload)
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            userService.getUserProfile(payload, rs)
-        }
+        @RequestBody request: UpdateUserProfileRequest
+    ): UserProfileResponse {
+        return userService.updateUserProfile(payload, request)
     }
 
     @Operation(
         summary = "Сохранить аватар пользователя",
-        description = "Вовзращает аватар текущего пользователя"
+        description = "Возвращает аватар текущего пользователя"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Операция успешна",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = AvatarResponse::class)
+        )],
     )
     @PostMapping(value = ["/avatar"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun saveUserAvatar(
         @AuthenticationPrincipal payload: UserPayload,
-        @RequestBody file: MultipartFile,
-        request: HttpServletRequest, response: HttpServletResponse
-    ): Response {
-        val traceId = getTraceIdOrGenerate(request)
+        @RequestPart("file") file: MultipartFile
+    ): AvatarResponse {
+        return userService.saveUserAvatar(file, payload)
+    }
 
-        logger.info(
-            ServerLogUtil.info(
-                "UserController.saveUserAvatar",
-                traceId.toString(),
-                "Enter"
-            )
-        )
-
-        return handleRequest(request, response, traceId) { rs: RequestSatellites ->
-            userService.saveUserAvatar(file, payload, rs)
-        }
+    @Operation(
+        summary = "Удалить аватар пользователя",
+        description = "Удаляет аватар текущего пользователя"
+    )
+    @DeleteMapping(value = ["/avatar"])
+    fun deleteAvatar(
+        @AuthenticationPrincipal payload: UserPayload
+    ) {
+        userService.deleteUserAvatar(payload)
     }
 }

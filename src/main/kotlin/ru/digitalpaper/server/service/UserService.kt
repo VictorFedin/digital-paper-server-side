@@ -1,10 +1,9 @@
 package ru.digitalpaper.server.service
 
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import ru.digitalpaper.server.dto.request.user.UpdateUserProfileRequest
 import ru.digitalpaper.server.dto.response.user.AvatarResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.dto.response.user.UserProfileResponse
@@ -13,8 +12,6 @@ import ru.digitalpaper.server.model.user.User
 import ru.digitalpaper.server.model.user.holder.Avatar
 import ru.digitalpaper.server.repository.UserRepo
 import ru.digitalpaper.server.type.StorageObjectType
-import ru.digitalpaper.server.util.common.RequestSatellites
-import ru.digitalpaper.server.util.log.ServerLogUtil
 import java.time.ZonedDateTime
 import java.util.*
 
@@ -24,91 +21,110 @@ class UserService(
     private val storageService: StorageService
 ) {
 
-    companion object {
-        private val logger: Logger = LoggerFactory.getLogger("grayLog")
-    }
-
     @Transactional(readOnly = true)
     fun getUserProfile(
-        payload: UserPayload,
-        rs: RequestSatellites
+        payload: UserPayload
     ): UserProfileResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "UserService.getUserProfile",
-                rs.traceId,
-                "Enter"
-            )
-        )
+        val user = getCurrentUser(payload)
 
-        val user = userRepo.getUserById(payload.id)
-            ?: throw NotFoundException("Пользователь не найден")
+        return user.toResponse()
+    }
 
-        return user.toResponse(rs)
+    @Transactional
+    fun updateUserProfile(
+        payload: UserPayload,
+        request: UpdateUserProfileRequest
+    ): UserProfileResponse {
+        val user = getCurrentUser(payload)
+
+        user.firstName = request.firstName ?: user.firstName
+        user.lastName = request.lastName ?: user.lastName
+        user.middleName = request.middleName ?: user.middleName
+        user.birthday = request.birthday ?: user.birthday
+
+        return user.toResponse()
     }
 
     @Transactional
     fun saveUserAvatar(
         file: MultipartFile,
         payload: UserPayload,
-        rs: RequestSatellites
     ): AvatarResponse {
-        logger.info(
-            ServerLogUtil.info(
-                "UserService.saveUserAvatar",
-                rs.traceId,
-                "Enter"
-            )
-        )
+        val user = getCurrentUser(payload)
 
-        val user = userRepo.getUserBySub(payload.sub)
-            ?: throw NotFoundException("Пользователь не найден")
-
-        val avatarId = UUID.randomUUID()
-        val originalName = file.originalFilename!!
+        val oldAvatar = user.avatar
 
         val storedFileInfo = storageService.upload(
-            file,
-            StorageObjectType.USER_AVATAR,
-            payload.id.toString(),
-            rs
+            file = file,
+            type = StorageObjectType.USER_AVATAR,
+            ownerId = payload.id.toString(),
         )
 
-
         val avatar = Avatar(
-            id = avatarId,
+            id = UUID.randomUUID(),
             bucket = storedFileInfo.bucket,
             objectKey = storedFileInfo.objectKey,
-            fileName = originalName,
-            fileSize = file.size,
-            contentType = file.contentType,
+            fileName = storedFileInfo.originalFileName
+                ?: file.originalFilename
+                ?: "avatar",
+            fileSize = storedFileInfo.size,
+            contentType = storedFileInfo.contentType,
             createdAt = ZonedDateTime.now()
         )
 
         user.avatar = avatar
-        userRepo.save(user)
 
-        return avatar.toResponse(rs)
+        oldAvatar?.let {
+            storageService.delete(
+                objectKey = it.objectKey,
+                type = StorageObjectType.USER_AVATAR
+            )
+        }
+
+        return avatar.toResponse()
     }
 
-    fun Avatar.toResponse(rs: RequestSatellites): AvatarResponse =
+    @Transactional
+    fun deleteUserAvatar(
+        payload: UserPayload
+    ) {
+        val user = getCurrentUser(payload)
+
+        val avatar = user.avatar
+            ?: return
+
+        storageService.delete(
+            avatar.objectKey,
+            StorageObjectType.USER_AVATAR
+        )
+
+        user.avatar = null
+    }
+
+    fun getCurrentUser(payload: UserPayload): User {
+        return userRepo.getUserById(payload.id)
+            ?: throw NotFoundException("Пользователь не найден")
+    }
+
+    fun Avatar.toResponse(): AvatarResponse =
         AvatarResponse(
             id = id,
-            link = storageService.getPublicOrResolvableUrl(bucket, objectKey, rs),
+            link = storageService.getPublicOrResolvableUrl(bucket, objectKey),
             fileName = fileName,
             contentType = contentType,
             fileSize = fileSize,
             createdAt = createdAt,
         )
 
-    fun User.toResponse(rs: RequestSatellites): UserProfileResponse =
+    fun User.toResponse(): UserProfileResponse =
         UserProfileResponse(
             id = id,
             email = email,
             firstName = firstName,
             lastName = lastName,
             middleName = middleName,
-            avatar = avatar?.toResponse(rs),
+            birthday = birthday,
+            avatar = avatar?.toResponse(),
             createdAt = createdAt,
             updatedAt = updatedAt
         )

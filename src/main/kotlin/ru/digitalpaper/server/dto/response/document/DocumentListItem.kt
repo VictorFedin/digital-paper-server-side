@@ -1,9 +1,8 @@
 package ru.digitalpaper.server.dto.response.document
 
-import ru.digitalpaper.server.dto.response.Response
 import ru.digitalpaper.server.model.document.holder.DocumentStatus
 import java.time.ZonedDateTime
-import java.util.UUID
+import java.util.*
 
 data class DocumentListItem(
     val id: UUID,
@@ -13,4 +12,4 @@ data class DocumentListItem(
     val contentType: String,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime
-) : Response()
+)
