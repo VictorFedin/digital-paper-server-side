@@ -41,6 +41,16 @@ import ru.digitalpaper.server.dto.response.common.ErrorResponse
             ]
         ),
         ApiResponse(
+            responseCode = "404",
+            description = "Запрашиваемый ресурс не найден",
+            content = [
+                Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = ErrorResponse::class)
+                )
+            ]
+        ),
+        ApiResponse(
             responseCode = "500",
             description = "Ошибка сервера",
             content = [

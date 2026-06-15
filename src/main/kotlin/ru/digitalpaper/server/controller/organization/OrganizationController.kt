@@ -1,15 +1,18 @@
 package ru.digitalpaper.server.controller.organization
 
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.data.domain.Sort
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
+import ru.digitalpaper.server.controller.base.CommonApiResponses
 import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
@@ -27,6 +30,8 @@ import java.util.*
 @RestController
 @RequestMapping(value = ["/api/v1/organizations"])
 @Validated
+@CommonApiResponses
+@Tag(name = "Организации", description = "Организации, сотрудники, роли и приглашения")
 class OrganizationController(
     private val organizationService: OrganizationService
 ) {
@@ -57,7 +62,9 @@ class OrganizationController(
     )
     @GetMapping(value = ["/{id}"])
     fun getOrganizationDetails(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
     ): OrganizationResponse {
         return organizationService.getOrganizationDetails(id, payload)
@@ -89,10 +96,19 @@ class OrganizationController(
     )
     @GetMapping(value = ["/my"])
     fun getMyOrganizationsList(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Номер страницы, начиная с 1", example = "1")
         @RequestParam(required = false) page: Int = 1,
+        @Parameter(description = "Количество элементов на странице", example = "10")
         @RequestParam(required = false) size: Int = 10,
+        @Parameter(
+            description = "Поле сортировки",
+            example = "createdAt",
+            schema = Schema(allowableValues = ["id", "name", "email", "status", "createdAt", "updatedAt"])
+        )
         @RequestParam(required = false) sortField: String = "createdAt",
+        @Parameter(description = "Направление сортировки", example = "DESC", schema = Schema(allowableValues = ["ASC", "DESC"]))
         @RequestParam(required = false) sortDirection: String = "DESC",
     ): OrganizationsPagedListResponse {
         val request = PagedRequest(
@@ -110,7 +126,7 @@ class OrganizationController(
 
     @Operation(
         summary = "Получить список всех организаций",
-        description = "Возвращает список организаций в системе"
+        description = "Возвращает страницу организаций, доступных в системе"
     )
     @ApiResponses(
         value = [
@@ -134,9 +150,17 @@ class OrganizationController(
     )
     @GetMapping(value = [""])
     fun getOrganizationsList(
+        @Parameter(description = "Номер страницы, начиная с 1", example = "1")
         @RequestParam(required = false) page: Int = 1,
+        @Parameter(description = "Количество элементов на странице", example = "10")
         @RequestParam(required = false) size: Int = 10,
+        @Parameter(
+            description = "Поле сортировки",
+            example = "createdAt",
+            schema = Schema(allowableValues = ["id", "name", "email", "status", "createdAt", "updatedAt"])
+        )
         @RequestParam(required = false) sortField: String = "createdBy",
+        @Parameter(description = "Направление сортировки", example = "DESC", schema = Schema(allowableValues = ["ASC", "DESC"]))
         @RequestParam(required = false) sortDirection: String = "DESC",
     ): OrganizationsPagedListResponse {
         val request = PagedRequest(
@@ -176,6 +200,7 @@ class OrganizationController(
     )
     @PostMapping(value = [""])
     fun addOrganization(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
         @Valid @RequestBody addOrganizationRequest: AddOrganizationRequest,
     ): OrganizationResponse {
@@ -208,7 +233,9 @@ class OrganizationController(
     )
     @PutMapping(value = ["/{id}"])
     fun updateOrganization(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
         @Valid @RequestBody updateOrganizationRequest: UpdateOrganizationRequest,
     ): OrganizationResponse {
@@ -241,7 +268,9 @@ class OrganizationController(
     )
     @PostMapping(value = ["/{id}/delete"])
     fun deleteOrganization(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID
     ): MessageResponse {
         return organizationService.deleteOrganization(id, payload)
@@ -273,7 +302,9 @@ class OrganizationController(
     )
     @PatchMapping(value = ["/{id}/restore"])
     fun restoreOrganization(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID
     ): MessageResponse {
         return organizationService.restoreOrganization(id, payload)
@@ -305,7 +336,9 @@ class OrganizationController(
     )
     @PostMapping(value = ["/{id}/users/add"])
     fun addUserToOrganization(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
         @Valid @RequestBody addUserToOrganizationRequest: AddUserToOrganizationRequest,
     ): MessageResponse {
@@ -338,12 +371,23 @@ class OrganizationController(
     )
     @GetMapping(value = ["/{id}/users"])
     fun getOrganizationUsers(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @Parameter(description = "Номер страницы, начиная с 1", example = "1")
         @RequestParam page: Int = 1,
+        @Parameter(description = "Количество сотрудников на странице", example = "10")
         @RequestParam size: Int = 10,
+        @Parameter(
+            description = "Поле сортировки",
+            example = "createdAt",
+            schema = Schema(allowableValues = ["id", "email", "name", "createdAt", "updatedAt"])
+        )
         @RequestParam sortField: String = "createdAt",
+        @Parameter(description = "Направление сортировки", example = "DESC")
         @RequestParam sortDirection: Sort.Direction = Sort.Direction.DESC,
+        @Parameter(description = "Поиск по email, имени, фамилии или отчеству", example = "Иванов")
         @RequestParam search: String? = null,
     ): UsersPagedListResponse {
         return organizationService.getOrganizationUsers(id, payload, page, size, sortField, sortDirection, search)
@@ -375,8 +419,11 @@ class OrganizationController(
     )
     @GetMapping(value = ["/{id}/users/birthday"])
     fun getOrganizationUsersBirthdays(
+        @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable("id") organizationId: UUID,
+        @Parameter(description = "Номер месяца от 1 до 12", example = "6", schema = Schema(minimum = "1", maximum = "12"))
         @RequestParam month: Int,
     ): UsersListResponse {
         return organizationService.getOrganizationUsersBirthdays(payload, organizationId, month)

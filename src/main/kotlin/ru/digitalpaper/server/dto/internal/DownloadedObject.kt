@@ -1,7 +1,9 @@
 package ru.digitalpaper.server.dto.internal
 
+import io.swagger.v3.oas.annotations.media.Schema
 import java.io.InputStream
 
+@Schema(hidden = true)
 data class DownloadedObject(
     val inputStream: InputStream,
     val contentType: String,

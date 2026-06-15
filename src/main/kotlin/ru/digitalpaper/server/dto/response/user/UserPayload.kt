@@ -1,7 +1,9 @@
 package ru.digitalpaper.server.dto.response.user
 
+import io.swagger.v3.oas.annotations.media.Schema
 import java.util.*
 
+@Schema(hidden = true)
 data class UserPayload(
     val id: UUID,
     val sub: String,
