@@ -8,12 +8,14 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.dto.internal.DownloadedFile
 import ru.digitalpaper.server.dto.request.document.CreateDocumentRequest
+import ru.digitalpaper.server.dto.request.document.ChangeDocumentStatusRequest
 import ru.digitalpaper.server.dto.request.document.DocumentListFilter
 import ru.digitalpaper.server.dto.request.document.DocumentListRequest
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.common.PagedResponse
 import ru.digitalpaper.server.dto.response.document.DocumentListItem
 import ru.digitalpaper.server.dto.response.document.DocumentResponse
+import ru.digitalpaper.server.dto.response.document.DocumentStatusTransitionsResponse
 import ru.digitalpaper.server.dto.response.document.DocumentsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.exception.BadRequestException
@@ -21,6 +23,7 @@ import ru.digitalpaper.server.exception.ForbiddenException
 import ru.digitalpaper.server.exception.NotFoundException
 import ru.digitalpaper.server.model.document.Document
 import ru.digitalpaper.server.model.document.holder.DocumentStatus
+import ru.digitalpaper.server.model.organization.UserOrganization
 import ru.digitalpaper.server.repository.DocumentRepo
 import ru.digitalpaper.server.repository.UserOrganizationRepo
 import ru.digitalpaper.server.type.StorageObjectType
@@ -32,7 +35,8 @@ class DocumentService(
     private val documentRepo: DocumentRepo,
     private val organizationService: OrganizationService,
     private val storageService: StorageService,
-    private val userOrganizationRepo: UserOrganizationRepo
+    private val userOrganizationRepo: UserOrganizationRepo,
+    private val statusTransitionPolicy: DocumentStatusTransitionPolicy
 ) {
 
     @Transactional(readOnly = true)
@@ -165,6 +169,40 @@ class DocumentService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun getAvailableStatusTransitions(
+        id: UUID,
+        payload: UserPayload
+    ): DocumentStatusTransitionsResponse {
+        val document = getAccessibleDocument(id, payload)
+
+        return DocumentStatusTransitionsResponse(
+            currentStatus = document.status,
+            availableStatuses = statusTransitionPolicy.availableFrom(document.status)
+        )
+    }
+
+    @Transactional
+    fun changeDocumentStatus(
+        id: UUID,
+        payload: UserPayload,
+        request: ChangeDocumentStatusRequest
+    ): DocumentResponse {
+        val (document, membership) = getAccessibleDocumentWithMembership(id, payload)
+        val targetStatus = request.status
+            ?: throw BadRequestException("Необходимо указать новый статус документа")
+
+        statusTransitionPolicy.validate(
+            currentStatus = document.status,
+            targetStatus = targetStatus
+        )
+
+        document.status = targetStatus
+        document.lastModifiedBy = membership.user
+
+        return document.toResponse()
+    }
+
     @Transactional
     fun restoreDocument(
         id: UUID,
@@ -203,6 +241,24 @@ class DocumentService(
         document.status = DocumentStatus.DELETED
 
         return MessageResponse("Документ удален")
+    }
+
+    private fun getAccessibleDocument(
+        id: UUID,
+        payload: UserPayload
+    ): Document = getAccessibleDocumentWithMembership(id, payload).first
+
+    private fun getAccessibleDocumentWithMembership(
+        id: UUID,
+        payload: UserPayload
+    ): Pair<Document, UserOrganization> {
+        val document = documentRepo.getDocument(id)
+            ?: throw NotFoundException("Документ не найден")
+
+        val membership = userOrganizationRepo.findMembership(payload.id, document.organization.id)
+            ?: throw ForbiddenException("У вас нет доступа к этому документу")
+
+        return document to membership
     }
 
     fun Document.toResponse(): DocumentResponse =
