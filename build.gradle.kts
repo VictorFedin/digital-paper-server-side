@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
-    kotlin("plugin.jpa") version "1.9.22"
+    kotlin("plugin.jpa") version "2.2.21"
     id("org.springframework.boot") version "4.0.2"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -57,7 +57,9 @@ dependencies {
 
     implementation("org.apache.poi:poi-ooxml:5.4.1")
 
-    runtimeOnly("org.flywaydb:flyway-database-postgresql:11.3.1")
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
+
+    runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")

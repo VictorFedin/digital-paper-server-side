@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import jakarta.validation.Valid
 import org.springframework.core.io.InputStreamResource
 import org.springframework.data.domain.Sort
 import org.springframework.http.ContentDisposition
@@ -16,10 +17,12 @@ import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.dto.request.document.CreateDocumentRequest
+import ru.digitalpaper.server.dto.request.document.ChangeDocumentStatusRequest
 import ru.digitalpaper.server.dto.request.document.DocumentListRequest
 import ru.digitalpaper.server.dto.response.common.ErrorResponse
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.document.DocumentResponse
+import ru.digitalpaper.server.dto.response.document.DocumentStatusTransitionsResponse
 import ru.digitalpaper.server.dto.response.document.DocumentsPagedListResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.model.document.holder.DocumentType
@@ -205,6 +208,31 @@ class DocumentController(
         file.contentLength?.let(builder::contentLength)
 
         return builder.body(file.resource)
+    }
+
+    @Operation(
+        summary = "Получить доступные статусы документа",
+        description = "Возвращает текущий статус и список допустимых следующих статусов"
+    )
+    @GetMapping(value = ["/{id}/status/transitions"])
+    fun getAvailableStatusTransitions(
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable id: UUID,
+    ): DocumentStatusTransitionsResponse {
+        return documentService.getAvailableStatusTransitions(id, payload)
+    }
+
+    @Operation(
+        summary = "Изменить статус документа",
+        description = "Выполняет допустимый переход документа в новый статус"
+    )
+    @PatchMapping(value = ["/{id}/status"])
+    fun changeDocumentStatus(
+        @AuthenticationPrincipal payload: UserPayload,
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: ChangeDocumentStatusRequest,
+    ): DocumentResponse {
+        return documentService.changeDocumentStatus(id, payload, request)
     }
 
     @Operation(

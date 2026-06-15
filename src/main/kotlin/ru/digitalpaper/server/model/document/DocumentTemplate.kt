@@ -22,6 +22,6 @@ class DocumentTemplate(
     @JoinColumn(name = "created_by", nullable = false)
     var author: User,
 
-    @OneToMany(mappedBy = "document_template_fields", cascade = [CascadeType.ALL], orphanRemoval = true)
+    @OneToMany(mappedBy = "template", cascade = [CascadeType.ALL], orphanRemoval = true)
     var fields: MutableSet<DocumentTemplateField> = mutableSetOf()
 ) : UniqueEntity()

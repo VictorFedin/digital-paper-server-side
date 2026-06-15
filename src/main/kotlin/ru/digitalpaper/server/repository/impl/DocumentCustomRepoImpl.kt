@@ -142,6 +142,7 @@ class DocumentCustomRepoImpl(
                 "name" to root.get<String>("name"),
                 "type" to root.get<DocumentType>("type"),
                 "status" to root.get<DocumentStatus>("status"),
+                "updatedAt" to root.get<ZonedDateTime>("updatedAt"),
                 "createdAt" to root.get<ZonedDateTime>("createdAt"),
             )
         )

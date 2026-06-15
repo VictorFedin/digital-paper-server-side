@@ -72,8 +72,8 @@ class OpenAPIConfig {
     private fun apiServers(): List<Server> {
         return listOf(
             Server()
-                .url("http://localhost:8083")
-                .description("Local environment")
+                .url("/")
+                .description("Current server")
         )
     }
 
