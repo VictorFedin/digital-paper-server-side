@@ -7,13 +7,13 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.MediaType
-import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
+import ru.digitalpaper.server.config.decorator.CurrentOrganization
+import ru.digitalpaper.server.context.OrganizationContext
 import ru.digitalpaper.server.controller.base.CommonApiResponses
 import ru.digitalpaper.server.dto.response.document.TemplateResponse
-import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.service.TemplateService
 import java.util.*
 
@@ -40,12 +40,11 @@ class DocumentTemplateController(
     )
     @GetMapping(value = ["/{id}"])
     fun getTemplateById(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор шаблона", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable("id") templateId: UUID
         ): TemplateResponse {
-        return templateService.getTemplateDetails(payload, templateId)
+        return templateService.getTemplateDetails(context, templateId)
     }
 
 
@@ -63,8 +62,7 @@ class DocumentTemplateController(
     )
     @PostMapping(value = ["/upload"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadTemplate(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(
             description = "DOCX-файл шаблона размером до 50 МБ",
             required = true,
@@ -74,6 +72,6 @@ class DocumentTemplateController(
         @Parameter(description = "Название шаблона", example = "Трудовой договор", required = true)
         @RequestParam("name") name: String,
     ): TemplateResponse {
-        return templateService.upload(payload, file, name)
+        return templateService.upload(context, file, name)
     }
 }

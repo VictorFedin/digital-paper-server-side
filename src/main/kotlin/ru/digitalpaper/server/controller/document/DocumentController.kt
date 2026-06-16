@@ -13,10 +13,11 @@ import org.springframework.http.ContentDisposition
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
+import ru.digitalpaper.server.config.decorator.CurrentOrganization
+import ru.digitalpaper.server.context.OrganizationContext
 import ru.digitalpaper.server.controller.base.CommonApiResponses
 import ru.digitalpaper.server.dto.request.document.CreateDocumentRequest
 import ru.digitalpaper.server.dto.request.document.ChangeDocumentStatusRequest
@@ -25,7 +26,6 @@ import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.document.DocumentResponse
 import ru.digitalpaper.server.dto.response.document.DocumentStatusTransitionsResponse
 import ru.digitalpaper.server.dto.response.document.DocumentsPagedListResponse
-import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.model.document.holder.DocumentType
 import ru.digitalpaper.server.service.DocumentService
 import java.nio.charset.StandardCharsets
@@ -54,8 +54,7 @@ class DocumentController(
     )
     @GetMapping(value = ["/list"])
     fun getDocumentsPagedList(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Номер страницы, начиная с 1", example = "1")
         @RequestParam page: Int = 1,
         @Parameter(description = "Количество элементов на странице", example = "10")
@@ -81,7 +80,7 @@ class DocumentController(
             type,
             search
         )
-        return documentService.getDocumentsPagedList(payload, request)
+        return documentService.getDocumentsPagedList(context, request)
     }
 
     @Operation(
@@ -98,8 +97,7 @@ class DocumentController(
     )
     @GetMapping(value = ["/deleted"])
     fun getDeletedDocumentsPagedList(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Номер страницы, начиная с 1", example = "1")
         @RequestParam page: Int = 1,
         @Parameter(description = "Количество элементов на странице", example = "10")
@@ -127,7 +125,7 @@ class DocumentController(
         )
 
         return documentService.getDeletedDocumentsPagedList(
-            payload,
+            context,
             request
         )
     }
@@ -146,8 +144,7 @@ class DocumentController(
     )
     @PostMapping(value = ["/upload"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadDocument(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(
             description = "PDF, DOC, DOCX, JPEG или PNG размером до 50 МБ",
             required = true,
@@ -167,7 +164,7 @@ class DocumentController(
             folderId = folderId
         )
 
-        return documentService.uploadDocument(payload, createDocumentRequest, file)
+        return documentService.uploadDocument(context, createDocumentRequest, file)
     }
 
     @Operation(
@@ -184,12 +181,11 @@ class DocumentController(
     )
     @GetMapping(value = ["/{id}/download"])
     fun downloadDocument(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
     ): ResponseEntity<InputStreamResource> {
-        val file = documentService.downloadDocument(id, payload)
+        val file = documentService.downloadDocument(id, context)
 
         val builder = ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(file.contentType))
@@ -220,12 +216,11 @@ class DocumentController(
     )
     @GetMapping(value = ["/{id}/status/transitions"])
     fun getAvailableStatusTransitions(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
     ): DocumentStatusTransitionsResponse {
-        return documentService.getAvailableStatusTransitions(id, payload)
+        return documentService.getAvailableStatusTransitions(id, context)
     }
 
     @Operation(
@@ -242,13 +237,12 @@ class DocumentController(
     )
     @PatchMapping(value = ["/{id}/status"])
     fun changeDocumentStatus(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
         @Valid @RequestBody request: ChangeDocumentStatusRequest,
     ): DocumentResponse {
-        return documentService.changeDocumentStatus(id, payload, request)
+        return documentService.changeDocumentStatus(id, context, request)
     }
 
     @Operation(
@@ -265,12 +259,11 @@ class DocumentController(
     )
     @PostMapping(value = ["/{id}/delete"])
     fun deleteDocument(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
     ): MessageResponse {
-        return documentService.deleteDocument(id, payload)
+        return documentService.deleteDocument(id, context)
     }
 
     @Operation(
@@ -287,12 +280,11 @@ class DocumentController(
     )
     @PostMapping(value = ["/{id}/restore"])
     fun restoreDocument(
-        @Parameter(hidden = true)
-        @AuthenticationPrincipal payload: UserPayload,
+        @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
     ): MessageResponse {
-        return documentService.restoreDocument(id, payload)
+        return documentService.restoreDocument(id, context)
     }
 
 }

@@ -1,10 +1,12 @@
 package ru.digitalpaper.server.service
 
+import org.springframework.core.io.InputStreamResource
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder
+import ru.digitalpaper.server.dto.internal.DownloadedFile
 import ru.digitalpaper.server.dto.request.user.UpdateUserProfileRequest
-import ru.digitalpaper.server.dto.response.user.AvatarResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.dto.response.user.UserProfileResponse
 import ru.digitalpaper.server.exception.NotFoundException
@@ -49,7 +51,7 @@ class UserService(
     fun saveUserAvatar(
         file: MultipartFile,
         payload: UserPayload,
-    ): AvatarResponse {
+    ): String {
         val user = getCurrentUser(payload)
 
         val oldAvatar = user.avatar
@@ -81,7 +83,7 @@ class UserService(
             )
         }
 
-        return avatar.toResponse()
+        return buildAvatarUrl(user.id, avatar.id)
     }
 
     @Transactional
@@ -106,15 +108,24 @@ class UserService(
             ?: throw NotFoundException("Пользователь не найден")
     }
 
-    fun Avatar.toResponse(): AvatarResponse =
-        AvatarResponse(
-            id = id,
-            link = storageService.getPublicOrResolvableUrl(bucket, objectKey),
-            fileName = fileName,
-            contentType = contentType,
-            fileSize = fileSize,
-            createdAt = createdAt,
+    @Transactional(readOnly = true)
+    fun getUserAvatar(id: UUID): DownloadedFile {
+        val user = userRepo.findById(id)
+            .orElseThrow { NotFoundException("Пользователь не найден") }
+        val avatar = user.avatar
+            ?: throw NotFoundException("Аватар пользователя не найден")
+        val downloadedObject = storageService.download(
+            objectKey = avatar.objectKey,
+            type = StorageObjectType.USER_AVATAR
         )
+
+        return DownloadedFile(
+            filename = avatar.fileName,
+            contentType = avatar.contentType ?: downloadedObject.contentType,
+            resource = InputStreamResource(downloadedObject.inputStream),
+            contentLength = downloadedObject.size
+        )
+    }
 
     fun User.toResponse(): UserProfileResponse =
         UserProfileResponse(
@@ -124,9 +135,16 @@ class UserService(
             lastName = lastName,
             middleName = middleName,
             birthday = birthday,
-            avatar = avatar?.toResponse(),
+            avatarUrl = avatar?.let { buildAvatarUrl(id, it.id) },
             createdAt = createdAt,
             updatedAt = updatedAt
         )
+
+    private fun buildAvatarUrl(userId: UUID, avatarId: UUID): String =
+        ServletUriComponentsBuilder.fromCurrentContextPath()
+            .path("/api/v1/users/{id}/avatar")
+            .queryParam("v", avatarId)
+            .buildAndExpand(userId)
+            .toUriString()
 
 }

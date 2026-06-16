@@ -34,6 +34,8 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID>, UserOrga
         value = """
             SELECT uo
             FROM UserOrganization uo
+            JOIN FETCH uo.user
+            JOIN FETCH uo.organization
             WHERE uo.user.id = :userId AND uo.organization.id = :organizationId
         """
     )
@@ -47,15 +49,6 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID>, UserOrga
         """
     )
     fun existUserInOrganization(userId: UUID, organizationId: UUID): Boolean
-
-    @Query(
-        value = """
-            SELECT uo
-            FROM UserOrganization uo
-            WHERE uo.user.id = :id
-        """
-    )
-    fun getRelationByUserId(id: UUID): UserOrganization?
 
     @Query(
         value = """

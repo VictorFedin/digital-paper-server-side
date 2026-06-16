@@ -127,11 +127,11 @@ class Organization(
             updatedAt = updatedAt
         )
 
-    fun toListItem(): OrganizationListItem =
+    fun toListItem(avatarUrl: String?): OrganizationListItem =
         OrganizationListItem(
             id = id,
             name = name,
-            avatar = avatar,
+            avatarUrl = avatarUrl,
             type = type,
             createdAt = createdAt,
         )

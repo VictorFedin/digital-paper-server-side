@@ -8,10 +8,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.springframework.core.io.InputStreamResource
 import org.springframework.data.domain.Sort
+import org.springframework.http.CacheControl
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
+import ru.digitalpaper.server.config.decorator.Public
 import ru.digitalpaper.server.controller.base.CommonApiResponses
 import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
@@ -25,6 +31,7 @@ import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.dto.response.user.UsersListResponse
 import ru.digitalpaper.server.dto.response.user.UsersPagedListResponse
 import ru.digitalpaper.server.service.OrganizationService
+import java.util.concurrent.TimeUnit
 import java.util.*
 
 @RestController
@@ -68,6 +75,68 @@ class OrganizationController(
         @PathVariable id: UUID,
     ): OrganizationResponse {
         return organizationService.getOrganizationDetails(id, payload)
+    }
+
+    @Public
+    @Operation(
+        summary = "Получить изображение организации",
+        description = "Возвращает изображение организации через backend"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Содержимое изображения",
+        content = [Content(
+            mediaType = "image/*",
+            schema = Schema(type = "string", format = "binary")
+        )]
+    )
+    @GetMapping(value = ["/{id}/avatar"])
+    fun getOrganizationAvatar(
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID
+    ): ResponseEntity<InputStreamResource> {
+        val file = organizationService.getOrganizationAvatar(id)
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(file.contentType))
+            .contentLength(file.contentLength ?: 0)
+            .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+            .body(file.resource)
+    }
+
+    @Operation(
+        summary = "Сохранить аватар организации",
+        description = "Загружает или заменяет аватар организации. Доступно владельцу или администратору организации"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Ссылка на загруженный аватар",
+        content = [Content(
+            mediaType = MediaType.TEXT_PLAIN_VALUE,
+            schema = Schema(
+                type = "string",
+                example = "http://localhost:8080/api/v1/organizations/550e8400-e29b-41d4-a716-446655440000/avatar?v=550e8400-e29b-41d4-a716-446655440001"
+            )
+        )]
+    )
+    @PostMapping(
+        value = ["/{id}/avatar"],
+        consumes = [MediaType.MULTIPART_FORM_DATA_VALUE],
+        produces = [MediaType.TEXT_PLAIN_VALUE]
+    )
+    fun saveOrganizationAvatar(
+        @Parameter(hidden = true)
+        @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+        @Parameter(
+            description = "Изображение JPEG, PNG или WebP размером до 5 МБ",
+            required = true,
+            schema = Schema(type = "string", format = "binary")
+        )
+        @RequestPart("file") file: MultipartFile
+    ): String {
+        return organizationService.saveOrganizationAvatar(id, payload, file)
     }
 
     @Operation(

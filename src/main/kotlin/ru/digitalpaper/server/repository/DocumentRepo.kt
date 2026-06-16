@@ -18,13 +18,4 @@ interface DocumentRepo : JpaRepository<Document, UUID>, DocumentCustomRepo {
         """
     )
     fun getDocumentByIdAndOrganizationId(id: UUID, organizationId: UUID): Document?
-
-    @Query(
-        value = """
-            SELECT d
-            FROM Document d
-            WHERE d.id = :id
-        """
-    )
-    fun getDocument(id: UUID): Document?
 }

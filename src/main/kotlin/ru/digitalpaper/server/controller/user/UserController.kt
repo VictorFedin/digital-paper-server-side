@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.controller.base.CommonApiResponses
 import ru.digitalpaper.server.dto.request.user.UpdateUserProfileRequest
-import ru.digitalpaper.server.dto.response.user.AvatarResponse
 import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.dto.response.user.UserProfileResponse
 import ru.digitalpaper.server.service.UserService
@@ -72,13 +71,20 @@ class UserController(
     )
     @ApiResponse(
         responseCode = "200",
-        description = "Операция успешна",
+        description = "Ссылка на загруженный аватар",
         content = [Content(
-            mediaType = "application/json",
-            schema = Schema(implementation = AvatarResponse::class)
+            mediaType = MediaType.TEXT_PLAIN_VALUE,
+            schema = Schema(
+                type = "string",
+                example = "http://localhost:8080/api/v1/users/550e8400-e29b-41d4-a716-446655440000/avatar"
+            )
         )],
     )
-    @PostMapping(value = ["/avatar"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    @PostMapping(
+        value = ["/avatar"],
+        consumes = [MediaType.MULTIPART_FORM_DATA_VALUE],
+        produces = [MediaType.TEXT_PLAIN_VALUE]
+    )
     fun saveUserAvatar(
         @Parameter(hidden = true)
         @AuthenticationPrincipal payload: UserPayload,
@@ -88,7 +94,7 @@ class UserController(
             schema = Schema(type = "string", format = "binary")
         )
         @RequestPart("file") file: MultipartFile
-    ): AvatarResponse {
+    ): String {
         return userService.saveUserAvatar(file, payload)
     }
 

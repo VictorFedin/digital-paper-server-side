@@ -3,9 +3,9 @@ package ru.digitalpaper.server.service
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import ru.digitalpaper.server.context.OrganizationContext
 import ru.digitalpaper.server.dto.response.document.TemplateFieldResponse
 import ru.digitalpaper.server.dto.response.document.TemplateResponse
-import ru.digitalpaper.server.dto.response.user.UserPayload
 import ru.digitalpaper.server.exception.BadRequestException
 import ru.digitalpaper.server.exception.NotFoundException
 import ru.digitalpaper.server.model.document.DocumentTemplate
@@ -16,7 +16,6 @@ import java.util.UUID
 
 @Service
 class TemplateService(
-    private val organizationService: OrganizationService,
     private val storageService: StorageService,
     private val templateRepo: TemplateRepo,
     private val docxTemplateParser: DocxTemplateParser
@@ -24,12 +23,10 @@ class TemplateService(
 
     @Transactional(readOnly = true)
     fun getTemplateDetails(
-        payload: UserPayload,
+        context: OrganizationContext,
         templateId: UUID,
     ): TemplateResponse {
-        val relation = organizationService.getRelationByUserId(payload.id)
-
-        val template = templateRepo.findByIdAndOrganizationId(templateId, relation.organization.id)
+        val template = templateRepo.findByIdAndOrganizationId(templateId, context.organization.id)
             ?: throw NotFoundException("Шаблон не найден")
 
         return template.toResponse()
@@ -37,12 +34,10 @@ class TemplateService(
 
     @Transactional
     fun upload(
-        payload: UserPayload,
+        context: OrganizationContext,
         file: MultipartFile,
         name: String,
     ): TemplateResponse {
-        val relation = organizationService.getRelationByUserId(payload.id)
-
         val normalizedName = name.trim()
         if (normalizedName.isBlank()) {
             throw BadRequestException("Название шаблона не может быть пустым")
@@ -53,14 +48,14 @@ class TemplateService(
         val storedFileInfo = storageService.upload(
             file = file,
             type = StorageObjectType.TEMPLATE,
-            ownerId = relation.organization.id.toString()
+            ownerId = context.organization.id.toString()
         )
 
         val template = DocumentTemplate(
             name = name,
             path = storedFileInfo.objectKey,
-            organization = relation.organization,
-            author = relation.user
+            organization = context.organization,
+            author = context.user
         )
 
         val result = templateRepo.save(template)

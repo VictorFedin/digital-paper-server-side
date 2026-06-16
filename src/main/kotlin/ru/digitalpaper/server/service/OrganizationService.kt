@@ -2,8 +2,12 @@ package ru.digitalpaper.server.service
 
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
+import org.springframework.core.io.InputStreamResource
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder
+import ru.digitalpaper.server.dto.internal.DownloadedFile
 import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
@@ -22,11 +26,14 @@ import ru.digitalpaper.server.exception.NotFoundException
 import ru.digitalpaper.server.model.organization.Organization
 import ru.digitalpaper.server.model.organization.UserOrganization
 import ru.digitalpaper.server.model.organization.holder.ModerationStatus
+import ru.digitalpaper.server.model.user.holder.Avatar
 import ru.digitalpaper.server.model.user.holder.UserRole
 import ru.digitalpaper.server.repository.OrganizationRepo
 import ru.digitalpaper.server.repository.UserOrganizationRepo
 import ru.digitalpaper.server.repository.UserRepo
+import ru.digitalpaper.server.type.StorageObjectType
 import ru.digitalpaper.server.util.Utils
+import java.time.ZonedDateTime
 import java.util.*
 
 @Service
@@ -35,7 +42,8 @@ class OrganizationService(
     private val userRepo: UserRepo,
     private val userOrganizationRepo: UserOrganizationRepo,
     private val invitationService: InvitationService,
-    private val userService: UserService
+    private val userService: UserService,
+    private val storageService: StorageService
 ) {
     @Transactional
     fun addOrganization(
@@ -98,7 +106,7 @@ class OrganizationService(
                 sortField = sortField,
                 sortDirection = direction.name
             ),
-            list = orgPage.content.map { it.toListItem() }
+            list = orgPage.content.map { it.toListItem(buildAvatarUrl(it)) }
         )
     }
 
@@ -127,8 +135,66 @@ class OrganizationService(
                 sortField = sortField,
                 sortDirection = direction.name
             ),
-            list = orgPage.content.map { it.toListItem() }
+            list = orgPage.content.map { it.toListItem(buildAvatarUrl(it)) }
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getOrganizationAvatar(id: UUID): DownloadedFile {
+        val organization = organizationRepo.findById(id)
+            .orElseThrow { NotFoundException("Организация не найдена") }
+        val avatar = organization.avatar
+            ?: throw NotFoundException("Изображение организации не найдено")
+        val downloadedObject = storageService.download(
+            objectKey = avatar.objectKey,
+            type = StorageObjectType.ORGANIZATION_IMAGE
+        )
+
+        return DownloadedFile(
+            filename = avatar.fileName,
+            contentType = avatar.contentType ?: downloadedObject.contentType,
+            resource = InputStreamResource(downloadedObject.inputStream),
+            contentLength = downloadedObject.size
+        )
+    }
+
+    @Transactional
+    fun saveOrganizationAvatar(
+        id: UUID,
+        payload: UserPayload,
+        file: MultipartFile
+    ): String {
+        val membership = getManageableMembershipOrThrow(payload, id)
+        val organization = membership.organization
+        val oldAvatar = organization.avatar
+
+        val storedFileInfo = storageService.upload(
+            file = file,
+            type = StorageObjectType.ORGANIZATION_IMAGE,
+            ownerId = organization.id.toString()
+        )
+
+        organization.avatar = Avatar(
+            id = UUID.randomUUID(),
+            bucket = storedFileInfo.bucket,
+            objectKey = storedFileInfo.objectKey,
+            fileName = storedFileInfo.originalFileName
+                ?: file.originalFilename
+                ?: "avatar",
+            fileSize = storedFileInfo.size,
+            contentType = storedFileInfo.contentType,
+            createdAt = ZonedDateTime.now()
+        )
+
+        oldAvatar?.let {
+            storageService.delete(
+                objectKey = it.objectKey,
+                type = StorageObjectType.ORGANIZATION_IMAGE
+            )
+        }
+
+        return buildAvatarUrl(organization)
+            ?: throw IllegalStateException("Не удалось сформировать ссылку на аватар организации")
     }
 
     @Transactional
@@ -292,14 +358,6 @@ class OrganizationService(
         )
     }
 
-    @Transactional(readOnly = true)
-    fun getRelationByUserId(
-        id: UUID,
-    ): UserOrganization {
-        return userOrganizationRepo.getRelationByUserId(id)
-            ?: throw NotFoundException("Пользователь не состоит ни в одной организации")
-    }
-
     private fun resolveUserSortField(sortField: String): String {
         return when (sortField) {
             "id" -> "id"
@@ -368,6 +426,16 @@ class OrganizationService(
             "updatedAt" -> "updatedAt"
             else -> "createdAt"
         }
+    }
+
+    private fun buildAvatarUrl(organization: Organization): String? {
+        val avatar = organization.avatar ?: return null
+
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+            .path("/api/v1/organizations/{id}/avatar")
+            .queryParam("v", avatar.id)
+            .buildAndExpand(organization.id)
+            .toUriString()
     }
 
 }

@@ -15,6 +15,7 @@ import ru.digitalpaper.server.model.document.Document
 import ru.digitalpaper.server.model.document.holder.DocumentStatus
 import ru.digitalpaper.server.model.document.holder.DocumentType
 import ru.digitalpaper.server.model.organization.Organization
+import ru.digitalpaper.server.model.user.User
 import ru.digitalpaper.server.repository.DocumentCustomRepo
 import ru.digitalpaper.server.util.Utils
 import java.time.ZonedDateTime
@@ -98,8 +99,16 @@ class DocumentCustomRepoImpl(
             if (normalizedSearch != null) {
                 val pattern = "%$normalizedSearch%"
 
+                val responsibleUser = root.join<Document, User>("responsibleUser")
+
                 predicates.add(
-                    cb.like(cb.lower(root.get("name")), pattern),
+                    cb.or(
+                        cb.like(cb.lower(root.get("name")), pattern),
+                        cb.like(cb.lower(responsibleUser.get("email")), pattern),
+                        cb.like(cb.lower(responsibleUser.get("firstName")), pattern),
+                        cb.like(cb.lower(responsibleUser.get("lastName")), pattern),
+                        cb.like(cb.lower(responsibleUser.get("middleName")), pattern),
+                    )
                 )
             }
         }

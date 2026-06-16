@@ -25,8 +25,12 @@ data class UserProfileResponse(
     @field:Schema(description = "Дата рождения", example = "1990-05-20", format = "date", nullable = true)
     val birthday: LocalDate? = null,
 
-    @field:Schema(description = "Аватар пользователя", nullable = true)
-    val avatar: AvatarResponse? = null,
+    @field:Schema(
+        description = "Ссылка на аватар пользователя через backend",
+        example = "http://localhost:8080/api/v1/users/550e8400-e29b-41d4-a716-446655440000/avatar",
+        nullable = true
+    )
+    val avatarUrl: String? = null,
 
     @field:Schema(description = "Дата и время создания профиля", format = "date-time", example = "2026-06-15T12:00:00+03:00")
     val createdAt: ZonedDateTime,

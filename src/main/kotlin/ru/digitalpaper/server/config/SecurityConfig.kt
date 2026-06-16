@@ -2,6 +2,7 @@ package ru.digitalpaper.server.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -44,6 +45,12 @@ class SecurityConfig(
                     ).permitAll()
 
                     .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/v1/organizations/*/avatar",
+                        "/api/v1/users/*/avatar"
+                    ).permitAll()
+
+                    .requestMatchers(
                         "/admin/**"
                     ).hasRole("admin")
 
@@ -66,7 +73,7 @@ class SecurityConfig(
     fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration().apply {
             allowedOriginPatterns = listOf("*")
-            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = false
         }
