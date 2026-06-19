@@ -3,6 +3,7 @@ package ru.digitalpaper.server.service
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockMultipartFile
+import ru.digitalpaper.server.model.document.holder.TemplateFieldType
 import java.io.ByteArrayOutputStream
 import kotlin.test.assertEquals
 
@@ -75,6 +76,54 @@ class DocxTemplateParserTest {
         assertEquals(1, fields.size)
         assertEquals("фио_сотрудника", fields.single().key)
         assertEquals("ФИО сотрудника", fields.single().label)
+    }
+
+    @Test
+    fun `parses date content control by key`() {
+        val file = createDocument {
+            val paragraph = createParagraph()
+            val control = paragraph.ctp.addNewSdt()
+            control.addNewSdtPr().apply {
+                addNewTag().`val` = "date"
+                addNewAlias().`val` = "Дата"
+            }
+            control.addNewSdtContent().addNewR().addNewT().stringValue = "16.06.2026"
+        }
+
+        val fields = parser.parse(file)
+
+        assertEquals(1, fields.size)
+        assertEquals("date", fields.single().key)
+        assertEquals(TemplateFieldType.DATE, fields.single().type)
+    }
+
+    @Test
+    fun `parses date content control by russian title`() {
+        val file = createDocument {
+            val paragraph = createParagraph()
+            val control = paragraph.ctp.addNewSdt()
+            control.addNewSdtPr().addNewAlias().`val` = "Дата приказа"
+            control.addNewSdtContent().addNewR().addNewT().stringValue = "16.06.2026"
+        }
+
+        val fields = parser.parse(file)
+
+        assertEquals(1, fields.size)
+        assertEquals("дата_приказа", fields.single().key)
+        assertEquals(TemplateFieldType.DATE, fields.single().type)
+    }
+
+    @Test
+    fun `parses legacy date placeholder`() {
+        val file = createDocument {
+            createParagraph().createRun().setText("Date: \${date}")
+        }
+
+        val fields = parser.parse(file)
+
+        assertEquals(1, fields.size)
+        assertEquals("date", fields.single().key)
+        assertEquals(TemplateFieldType.DATE, fields.single().type)
     }
 
     private fun createDocument(configure: XWPFDocument.() -> Unit): MockMultipartFile {

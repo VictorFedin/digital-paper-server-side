@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.http.MediaType
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
@@ -13,6 +14,8 @@ import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.config.decorator.CurrentOrganization
 import ru.digitalpaper.server.context.OrganizationContext
 import ru.digitalpaper.server.controller.base.CommonApiResponses
+import ru.digitalpaper.server.dto.request.document.CreateDocumentFromTemplateRequest
+import ru.digitalpaper.server.dto.response.document.DocumentResponse
 import ru.digitalpaper.server.dto.response.document.TemplateResponse
 import ru.digitalpaper.server.service.TemplateService
 import java.util.*
@@ -43,7 +46,7 @@ class DocumentTemplateController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор шаблона", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable("id") templateId: UUID
-        ): TemplateResponse {
+    ): TemplateResponse {
         return templateService.getTemplateDetails(context, templateId)
     }
 
@@ -73,5 +76,27 @@ class DocumentTemplateController(
         @RequestParam("name") name: String,
     ): TemplateResponse {
         return templateService.upload(context, file, name)
+    }
+
+    @Operation(
+        summary = "Создать документ из шаблона",
+        description = "Генерирует DOCX на основе шаблона и переданных значений полей, сохраняет файл и создаёт документ"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ создан",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/documents"])
+    fun createDocumentFromTemplate(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор шаблона", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable("id") templateId: UUID,
+        @Valid @RequestBody request: CreateDocumentFromTemplateRequest
+    ): DocumentResponse {
+        return templateService.createDocument(context, templateId, request)
     }
 }

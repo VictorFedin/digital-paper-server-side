@@ -9,6 +9,7 @@ import ru.digitalpaper.server.dto.internal.DownloadedObject
 import ru.digitalpaper.server.dto.internal.StoredObjectInfo
 import ru.digitalpaper.server.exception.InternalErrorException
 import ru.digitalpaper.server.type.StorageObjectType
+import java.io.ByteArrayInputStream
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -87,6 +88,49 @@ class StorageService(
         }
     }
 
+    fun uploadBytes(
+        bytes: ByteArray,
+        filename: String,
+        contentType: String,
+        type: StorageObjectType,
+        ownerId: String? = null,
+    ): StoredObjectInfo {
+        validateBytes(bytes, contentType, type)
+
+        val bucket = resolveBucket(type)
+        ensureBucketExists(bucket)
+
+        val objectKey = buildObjectKey(type, filename, ownerId)
+
+        ByteArrayInputStream(bytes).use { inputStream ->
+            val response = minioClient.putObject(
+                PutObjectArgs.builder()
+                    .bucket(bucket)
+                    .`object`(objectKey)
+                    .stream(inputStream, bytes.size.toLong(), -1)
+                    .contentType(contentType)
+                    .userMetadata(
+                        buildUserMetadata(
+                            filename,
+                            type,
+                            ownerId
+                        )
+                    )
+                    .build()
+            )
+
+            return StoredObjectInfo(
+                bucket = bucket,
+                objectKey = objectKey,
+                originalFileName = filename,
+                contentType = contentType,
+                size = bytes.size.toLong(),
+                etag = response.etag(),
+                versionId = response.versionId()
+            )
+        }
+    }
+
     fun download(
         objectKey: String,
         type: StorageObjectType,
@@ -157,6 +201,18 @@ class StorageService(
         require(!file.isEmpty) { "Файл пустой" }
         require(file.size <= type.maxSizeBytes) { "Размер файла превышает допустимый лимит" }
         require(contentType in type.allowedContentTypes) {
+            "Недопустимый content type: $contentType"
+        }
+    }
+
+    private fun validateBytes(
+        bytes: ByteArray,
+        contentType: String,
+        type: StorageObjectType
+    ) {
+        require(bytes.isNotEmpty()) { "Файл пустой" }
+        require(bytes.size <= type.maxSizeBytes) { "Размер файла превышает допустимый лимит" }
+        require(contentType.lowercase() in type.allowedContentTypes) {
             "Недопустимый content type: $contentType"
         }
     }

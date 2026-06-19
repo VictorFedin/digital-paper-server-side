@@ -76,7 +76,7 @@ class DocxTemplateParser {
         return ParsedTemplateField(
             key = key,
             label = label,
-            type = TemplateFieldType.TEXT,
+            type = inferFieldType(key, title, content),
             required = false
         )
     }
@@ -96,7 +96,7 @@ class DocxTemplateParser {
                 ParsedTemplateField(
                     key = key,
                     label = normalizeKey(key),
-                    type = TemplateFieldType.TEXT,
+                    type = inferFieldType(key, key, ""),
                     required = false
                 )
             }
@@ -135,5 +135,31 @@ class DocxTemplateParser {
             .joinToString(" ") { word ->
                 word.lowercase().replaceFirstChar { it.uppercase() }
             }
+    }
+
+    private fun inferFieldType(
+        key: String,
+        title: String,
+        content: String
+    ): TemplateFieldType {
+        val candidates = listOf(key, title, content)
+            .map { it.trim().lowercase() }
+            .filter { it.isNotBlank() }
+
+        if (candidates.any(::isDateField)) {
+            return TemplateFieldType.DATE
+        }
+
+        return TemplateFieldType.TEXT
+    }
+
+    private fun isDateField(value: String): Boolean {
+        val normalized = normalizeKeyValue(value)
+        val words = normalized.split("_").filter { it.isNotBlank() }
+
+        return normalized == "date" ||
+            normalized.endsWith("_date") ||
+            normalized.startsWith("date_") ||
+            "дата" in words
     }
 }
