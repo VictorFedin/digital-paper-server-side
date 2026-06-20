@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository
 import ru.digitalpaper.server.model.organization.Organization
 import ru.digitalpaper.server.model.organization.UserOrganization
 import ru.digitalpaper.server.model.user.User
+import ru.digitalpaper.server.model.user.holder.UserRole
 import java.util.*
 
 @Repository
@@ -49,6 +50,22 @@ interface UserOrganizationRepo : JpaRepository<UserOrganization, UUID>, UserOrga
         """
     )
     fun existUserInOrganization(userId: UUID, organizationId: UUID): Boolean
+
+    @Query(
+        value = """
+            SELECT uo
+            FROM UserOrganization uo
+            JOIN FETCH uo.user
+            JOIN FETCH uo.organization
+            WHERE uo.organization.id = :organizationId AND uo.user.id = :targetUserId
+        """
+    )
+    fun findOrganizationUser(
+        organizationId: UUID,
+        targetUserId: UUID
+    ): UserOrganization?
+
+    fun countByOrganizationIdAndRole(organizationId: UUID, role: UserRole): Long
 
     @Query(
         value = """

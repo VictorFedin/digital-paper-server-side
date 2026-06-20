@@ -9,7 +9,7 @@ data class ChangeDocumentStatusRequest(
     @field:NotNull(message = "Необходимо указать новый статус документа")
     @field:Schema(
         description = "Целевой статус документа. Переход должен быть разрешён текущим бизнес-процессом",
-        example = "IN_PROGRESS",
+        example = "APPROVED",
         requiredMode = Schema.RequiredMode.REQUIRED
     )
     val status: DocumentStatus?

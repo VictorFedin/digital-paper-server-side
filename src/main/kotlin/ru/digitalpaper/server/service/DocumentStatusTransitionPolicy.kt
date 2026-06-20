@@ -8,14 +8,49 @@ import ru.digitalpaper.server.model.document.holder.DocumentStatus
 class DocumentStatusTransitionPolicy {
 
     private val transitions = mapOf(
-        DocumentStatus.CREATED to setOf(DocumentStatus.IN_PROGRESS),
-        DocumentStatus.IN_PROGRESS to setOf(DocumentStatus.PENDING_REVIEW),
-        DocumentStatus.PENDING_REVIEW to setOf(
-            DocumentStatus.DONE,
-            DocumentStatus.REJECTED
+        DocumentStatus.DRAFT to setOf(
+            DocumentStatus.CREATED,
+            DocumentStatus.CANCELLED,
+            DocumentStatus.EXPIRED
         ),
-        DocumentStatus.REJECTED to setOf(DocumentStatus.IN_PROGRESS),
+        DocumentStatus.CREATED to setOf(
+            DocumentStatus.IN_PROGRESS,
+            DocumentStatus.PENDING_REVIEW,
+            DocumentStatus.CANCELLED,
+            DocumentStatus.EXPIRED
+        ),
+        DocumentStatus.IN_PROGRESS to setOf(
+            DocumentStatus.PENDING_REVIEW,
+            DocumentStatus.CANCELLED,
+            DocumentStatus.EXPIRED
+        ),
+        DocumentStatus.PENDING_REVIEW to setOf(
+            DocumentStatus.APPROVED,
+            DocumentStatus.CHANGES_REQUESTED,
+            DocumentStatus.REJECTED,
+            DocumentStatus.EXPIRED
+        ),
+        DocumentStatus.CHANGES_REQUESTED to setOf(
+            DocumentStatus.IN_PROGRESS,
+            DocumentStatus.PENDING_REVIEW,
+            DocumentStatus.CANCELLED,
+            DocumentStatus.EXPIRED
+        ),
+        DocumentStatus.APPROVED to setOf(
+            DocumentStatus.SIGNED,
+            DocumentStatus.DONE,
+            DocumentStatus.EXPIRED
+        ),
+        DocumentStatus.SIGNED to setOf(DocumentStatus.DONE),
+        DocumentStatus.REJECTED to setOf(
+            DocumentStatus.IN_PROGRESS,
+            DocumentStatus.PENDING_REVIEW,
+            DocumentStatus.CANCELLED,
+            DocumentStatus.EXPIRED
+        ),
         DocumentStatus.DONE to emptySet(),
+        DocumentStatus.CANCELLED to emptySet(),
+        DocumentStatus.EXPIRED to emptySet(),
         DocumentStatus.DELETED to emptySet()
     )
 

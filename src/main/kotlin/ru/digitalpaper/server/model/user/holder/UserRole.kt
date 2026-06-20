@@ -11,4 +11,6 @@ enum class UserRole {
             OWNER, ADMIN -> true
             EMPLOYEE, LAWYER -> false
         }
+
+    fun isOwner(): Boolean = this == OWNER
 }

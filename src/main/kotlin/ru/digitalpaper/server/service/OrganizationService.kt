@@ -11,6 +11,7 @@ import ru.digitalpaper.server.dto.internal.DownloadedFile
 import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
+import ru.digitalpaper.server.dto.request.organization.ChangeOrganizationUserRoleRequest
 import ru.digitalpaper.server.dto.request.organization.OrganizationUserListFilter
 import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
 import ru.digitalpaper.server.dto.response.common.MessageResponse
@@ -234,6 +235,39 @@ class OrganizationService(
     }
 
     @Transactional
+    fun changeOrganizationUserRole(
+        payload: UserPayload,
+        organizationId: UUID,
+        targetUserId: UUID,
+        request: ChangeOrganizationUserRoleRequest
+    ): MessageResponse {
+        getOwnerMembershipOrThrow(payload, organizationId)
+
+        val targetMembership = userOrganizationRepo.findOrganizationUser(
+            organizationId = organizationId,
+            targetUserId = targetUserId
+        ) ?: throw NotFoundException("Пользователь не найден в организации")
+
+        val newRole = request.role
+            ?: throw BadRequestException("Необходимо указать роль пользователя")
+
+        if (targetMembership.role == UserRole.OWNER && newRole != UserRole.OWNER) {
+            val ownersCount = userOrganizationRepo.countByOrganizationIdAndRole(
+                organizationId = organizationId,
+                role = UserRole.OWNER
+            )
+
+            if (ownersCount <= 1) {
+                throw BadRequestException("Нельзя снять роль с последнего владельца организации")
+            }
+        }
+
+        targetMembership.role = newRole
+
+        return MessageResponse("Роль пользователя изменена")
+    }
+
+    @Transactional
     fun updateOrganization(
         id: UUID,
         request: UpdateOrganizationRequest,
@@ -399,6 +433,24 @@ class OrganizationService(
 
         if (!membership.role.canManageOrganization()) {
             throw ForbiddenException("Недостаточно прав")
+        }
+
+        return membership
+    }
+
+    private fun getOwnerMembershipOrThrow(
+        payload: UserPayload,
+        organizationId: UUID,
+    ): UserOrganization {
+        val actor = userService.getCurrentUser(payload)
+
+        val membership = getMembershipOrThrow(
+            userId = actor.id,
+            organizationId = organizationId,
+        )
+
+        if (!membership.role.isOwner()) {
+            throw ForbiddenException("Действие доступно только владельцу организации")
         }
 
         return membership

@@ -246,6 +246,195 @@ class DocumentController(
     }
 
     @Operation(
+        summary = "Взять документ в работу",
+        description = "Переводит документ в статус IN_PROGRESS"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ взят в работу",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/start"])
+    fun startDocument(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.startDocument(id, context)
+    }
+
+    @Operation(
+        summary = "Отправить документ на проверку",
+        description = "Переводит документ в статус PENDING_REVIEW. Статус IN_PROGRESS можно пропустить"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ отправлен на проверку",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/submit-review"])
+    fun submitDocumentForReview(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.submitDocumentForReview(id, context)
+    }
+
+    @Operation(
+        summary = "Запросить правки по документу",
+        description = "Переводит документ в статус CHANGES_REQUESTED. Доступно только владельцу организации"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "По документу запрошены правки",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/request-changes"])
+    fun requestDocumentChanges(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.requestDocumentChanges(id, context)
+    }
+
+    @Operation(
+        summary = "Утвердить документ",
+        description = "Переводит документ в статус APPROVED. Доступно только владельцу организации"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ утверждён",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/approve"])
+    fun approveDocument(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.approveDocument(id, context)
+    }
+
+    @Operation(
+        summary = "Отклонить документ",
+        description = "Переводит документ в статус REJECTED. Доступно только владельцу организации"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ отклонён",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/reject"])
+    fun rejectDocument(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.rejectDocument(id, context)
+    }
+
+    @Operation(
+        summary = "Подписать документ",
+        description = "Переводит документ в статус SIGNED"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ подписан",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/sign"])
+    fun signDocument(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.signDocument(id, context)
+    }
+
+    @Operation(
+        summary = "Завершить документ",
+        description = "Переводит документ в статус DONE"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ завершён",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/complete"])
+    fun completeDocument(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.completeDocument(id, context)
+    }
+
+    @Operation(
+        summary = "Отменить документ",
+        description = "Переводит документ в статус CANCELLED"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ отменён",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/cancel"])
+    fun cancelDocument(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.cancelDocument(id, context)
+    }
+
+    @Operation(
+        summary = "Пометить документ просроченным",
+        description = "Переводит документ в статус EXPIRED. Доступно только владельцу организации"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Документ помечен просроченным",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PostMapping(value = ["/{id}/expire"])
+    fun expireDocument(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): DocumentResponse {
+        return documentService.expireDocument(id, context)
+    }
+
+    @Operation(
         summary = "Удалить документ",
         description = "Выполняет мягкое удаление документа, переводя его в статус DELETED"
     )

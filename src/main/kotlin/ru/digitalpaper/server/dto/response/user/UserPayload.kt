@@ -11,5 +11,6 @@ data class UserPayload(
     val lastName: String,
     val email: String,
     val verified: Boolean,
-    val roles: List<String>
+    val roles: List<String>,
+    val isAdmin: Boolean = roles.any { it.equals("ADMIN", ignoreCase = true) }
 )

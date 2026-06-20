@@ -52,7 +52,7 @@ class SecurityConfig(
 
                     .requestMatchers(
                         "/admin/**"
-                    ).hasRole("admin")
+                    ).hasRole("ADMIN")
 
                     .requestMatchers(
                         "/api/**"

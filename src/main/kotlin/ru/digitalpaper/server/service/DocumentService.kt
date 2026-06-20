@@ -19,6 +19,7 @@ import ru.digitalpaper.server.dto.response.document.DocumentResponse
 import ru.digitalpaper.server.dto.response.document.DocumentStatusTransitionsResponse
 import ru.digitalpaper.server.dto.response.document.DocumentsPagedListResponse
 import ru.digitalpaper.server.exception.BadRequestException
+import ru.digitalpaper.server.exception.ForbiddenException
 import ru.digitalpaper.server.exception.NotFoundException
 import ru.digitalpaper.server.model.document.Document
 import ru.digitalpaper.server.model.document.holder.DocumentStatus
@@ -176,19 +177,82 @@ class DocumentService(
         context: OrganizationContext,
         request: ChangeDocumentStatusRequest
     ): DocumentResponse {
-        val document = getAccessibleDocument(id, context)
         val targetStatus = request.status
             ?: throw BadRequestException("Необходимо указать новый статус документа")
 
-        statusTransitionPolicy.validate(
-            currentStatus = document.status,
-            targetStatus = targetStatus
-        )
+        return transitionDocument(id, context, targetStatus)
+    }
 
-        document.status = targetStatus
-        document.lastModifiedBy = context.user
+    @Transactional
+    fun startDocument(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.IN_PROGRESS)
+    }
 
-        return document.toResponse()
+    @Transactional
+    fun submitDocumentForReview(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.PENDING_REVIEW)
+    }
+
+    @Transactional
+    fun requestDocumentChanges(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.CHANGES_REQUESTED, ownerRequired = true)
+    }
+
+    @Transactional
+    fun approveDocument(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.APPROVED, ownerRequired = true)
+    }
+
+    @Transactional
+    fun rejectDocument(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.REJECTED, ownerRequired = true)
+    }
+
+    @Transactional
+    fun signDocument(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.SIGNED)
+    }
+
+    @Transactional
+    fun completeDocument(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.DONE)
+    }
+
+    @Transactional
+    fun cancelDocument(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.CANCELLED)
+    }
+
+    @Transactional
+    fun expireDocument(
+        id: UUID,
+        context: OrganizationContext
+    ): DocumentResponse {
+        return transitionDocument(id, context, DocumentStatus.EXPIRED, ownerRequired = true)
     }
 
     @Transactional
@@ -214,6 +278,7 @@ class DocumentService(
         context: OrganizationContext
     ): MessageResponse {
         val document = getAccessibleDocument(id, context)
+        ensureCanDeleteDocument(document, context)
 
         if (document.status == DocumentStatus.DELETED) {
             return MessageResponse("Документ уже удален")
@@ -231,6 +296,46 @@ class DocumentService(
     ): Document =
         documentRepo.getDocumentByIdAndOrganizationId(id, context.organization.id)
             ?: throw NotFoundException("Документ не найден")
+
+    private fun transitionDocument(
+        id: UUID,
+        context: OrganizationContext,
+        targetStatus: DocumentStatus,
+        ownerRequired: Boolean = targetStatus in OWNER_ONLY_STATUS_ACTIONS
+    ): DocumentResponse {
+        if (ownerRequired) {
+            ensureOwner(context)
+        }
+
+        val document = getAccessibleDocument(id, context)
+
+        statusTransitionPolicy.validate(
+            currentStatus = document.status,
+            targetStatus = targetStatus
+        )
+
+        document.status = targetStatus
+        document.lastModifiedBy = context.user
+
+        return document.toResponse()
+    }
+
+    private fun ensureCanDeleteDocument(
+        document: Document,
+        context: OrganizationContext
+    ) {
+        if (context.role.isOwner() || document.createdBy.id == context.user.id) {
+            return
+        }
+
+        throw ForbiddenException("Удалять чужие документы может только владелец организации")
+    }
+
+    private fun ensureOwner(context: OrganizationContext) {
+        if (!context.role.isOwner()) {
+            throw ForbiddenException("Действие доступно только владельцу организации")
+        }
+    }
 
     fun Document.toResponse(): DocumentResponse =
         DocumentResponse(
@@ -266,5 +371,14 @@ class DocumentService(
             "updatedAt" -> "updatedAt"
             else -> "createdAt"
         }
+    }
+
+    companion object {
+        private val OWNER_ONLY_STATUS_ACTIONS = setOf(
+            DocumentStatus.CHANGES_REQUESTED,
+            DocumentStatus.APPROVED,
+            DocumentStatus.REJECTED,
+            DocumentStatus.EXPIRED
+        )
     }
 }

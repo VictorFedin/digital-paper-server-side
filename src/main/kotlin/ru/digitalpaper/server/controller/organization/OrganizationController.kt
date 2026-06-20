@@ -24,6 +24,7 @@ import ru.digitalpaper.server.controller.base.CommonApiResponses
 import ru.digitalpaper.server.dto.internal.PagedRequest
 import ru.digitalpaper.server.dto.request.organization.AddOrganizationRequest
 import ru.digitalpaper.server.dto.request.organization.AddUserToOrganizationRequest
+import ru.digitalpaper.server.dto.request.organization.ChangeOrganizationUserRoleRequest
 import ru.digitalpaper.server.dto.request.organization.UpdateOrganizationRequest
 import ru.digitalpaper.server.dto.response.common.ErrorResponse
 import ru.digitalpaper.server.dto.response.common.MessageResponse
@@ -451,6 +452,31 @@ class OrganizationController(
         @Valid @RequestBody addUserToOrganizationRequest: AddUserToOrganizationRequest,
     ): MessageResponse {
         return organizationService.addUserToOrganization(payload, id, addUserToOrganizationRequest)
+    }
+
+    @Operation(
+        summary = "Изменить роль пользователя в организации",
+        description = "Меняет роль пользователя. Доступно только владельцу организации"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Роль пользователя изменена",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = MessageResponse::class)
+        )]
+    )
+    @PatchMapping(value = ["/{id}/users/{userId}/role"])
+    fun changeOrganizationUserRole(
+        @Parameter(hidden = true)
+        @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+        @Parameter(description = "Идентификатор пользователя", example = "550e8400-e29b-41d4-a716-446655440001")
+        @PathVariable userId: UUID,
+        @Valid @RequestBody request: ChangeOrganizationUserRoleRequest,
+    ): MessageResponse {
+        return organizationService.changeOrganizationUserRole(payload, id, userId, request)
     }
 
     @Operation(
