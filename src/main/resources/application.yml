@@ -65,6 +65,11 @@ keycloak:
         client-id: ${KEYCLOAK_CLIENT_ID:digital-paper-api}
         client-secret: ${KEYCLOAK_CLIENT_SECRET:PJiX4MOPhYQXqozLGVT0548X3x2AD4Vc}
 
+document:
+    converter:
+        soffice-path: ${SOFFICE_PATH:soffice}
+        timeout-seconds: ${SOFFICE_TIMEOUT_SECONDS:60}
+
 s3:
     config:
         endpoint: ${S3_ENDPOINT:http://127.0.0.1:9000}

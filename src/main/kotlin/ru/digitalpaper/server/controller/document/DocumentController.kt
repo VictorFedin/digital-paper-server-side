@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.springframework.core.io.ByteArrayResource
 import org.springframework.core.io.InputStreamResource
 import org.springframework.data.domain.Sort
 import org.springframework.http.ContentDisposition
@@ -216,13 +217,14 @@ class DocumentController(
             schema = Schema(type = "string", format = "binary")
         )]
     )
-    @GetMapping(value = ["/{id}/preview/pdf"])
+    @GetMapping(value = ["/{id}/preview/pdf"], produces = [MediaType.APPLICATION_PDF_VALUE])
     fun previewDocumentAsPdf(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
-    ): ResponseEntity<InputStreamResource> {
+    ): ResponseEntity<ByteArrayResource> {
         val file = documentService.previewDocumentAsPdf(id, context)
+        val bytes = file.resource.inputStream.use { it.readBytes() }
 
         val builder = ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
@@ -233,10 +235,11 @@ class DocumentController(
                     .build()
                     .toString()
             )
+            .header(HttpHeaders.ACCEPT_RANGES, "bytes")
 
-        file.contentLength?.let(builder::contentLength)
+        builder.contentLength(bytes.size.toLong())
 
-        return builder.body(file.resource)
+        return builder.body(ByteArrayResource(bytes))
     }
 
     @Operation(

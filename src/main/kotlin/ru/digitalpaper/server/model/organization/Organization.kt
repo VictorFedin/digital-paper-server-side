@@ -118,10 +118,16 @@ class Organization(
         OrganizationResponse(
             id = id,
             name = name,
+            fullName = fullName,
             description = description,
             phone = phone,
             email = email,
             industry = industry,
+            type = type,
+            regNumber = regNumber,
+            identificationNumber = identificationNumber,
+            regReasonCode = regReasonCode,
+            address = address,
             status = status,
             createdAt = createdAt,
             updatedAt = updatedAt
