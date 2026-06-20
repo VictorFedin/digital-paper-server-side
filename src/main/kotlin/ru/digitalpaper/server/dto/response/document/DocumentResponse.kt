@@ -20,6 +20,13 @@ data class DocumentResponse(
     @field:Schema(description = "Текущий статус документа", example = "PENDING_REVIEW")
     val status: DocumentStatus,
 
+    @field:Schema(
+        description = "Последняя причина или комментарий к изменению статуса",
+        example = "Необходимо заполнить пункт 3.2",
+        nullable = true
+    )
+    val statusReason: String? = null,
+
     @field:Schema(description = "MIME-тип файла", example = "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     val contentType: String,
 

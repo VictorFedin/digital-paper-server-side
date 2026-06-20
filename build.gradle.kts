@@ -56,6 +56,7 @@ dependencies {
     implementation("io.minio:minio:8.6.0")
 
     implementation("org.apache.poi:poi-ooxml:5.4.1")
+    implementation("org.apache.pdfbox:pdfbox:3.0.5")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 

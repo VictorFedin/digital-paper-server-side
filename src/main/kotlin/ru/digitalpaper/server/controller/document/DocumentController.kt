@@ -19,9 +19,11 @@ import org.springframework.web.multipart.MultipartFile
 import ru.digitalpaper.server.config.decorator.CurrentOrganization
 import ru.digitalpaper.server.context.OrganizationContext
 import ru.digitalpaper.server.controller.base.CommonApiResponses
+import ru.digitalpaper.server.dto.request.document.AssignDocumentResponsibleRequest
 import ru.digitalpaper.server.dto.request.document.CreateDocumentRequest
 import ru.digitalpaper.server.dto.request.document.ChangeDocumentStatusRequest
 import ru.digitalpaper.server.dto.request.document.DocumentListRequest
+import ru.digitalpaper.server.dto.request.document.DocumentStatusActionRequest
 import ru.digitalpaper.server.dto.response.common.MessageResponse
 import ru.digitalpaper.server.dto.response.document.DocumentResponse
 import ru.digitalpaper.server.dto.response.document.DocumentStatusTransitionsResponse
@@ -203,6 +205,41 @@ class DocumentController(
     }
 
     @Operation(
+        summary = "Получить PDF-представление документа",
+        description = "Формирует PDF-preview для DOCX-документа. Для PDF-документа возвращает исходный файл"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "PDF-представление документа",
+        content = [Content(
+            mediaType = "application/pdf",
+            schema = Schema(type = "string", format = "binary")
+        )]
+    )
+    @GetMapping(value = ["/{id}/preview/pdf"])
+    fun previewDocumentAsPdf(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+    ): ResponseEntity<InputStreamResource> {
+        val file = documentService.previewDocumentAsPdf(id, context)
+
+        val builder = ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(
+                HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.inline()
+                    .filename(file.filename, StandardCharsets.UTF_8)
+                    .build()
+                    .toString()
+            )
+
+        file.contentLength?.let(builder::contentLength)
+
+        return builder.body(file.resource)
+    }
+
+    @Operation(
         summary = "Получить доступные статусы документа",
         description = "Возвращает текущий статус документа и разрешённые бизнес-процессом следующие статусы"
     )
@@ -262,8 +299,9 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody(required = false) request: DocumentStatusActionRequest?,
     ): DocumentResponse {
-        return documentService.startDocument(id, context)
+        return documentService.startDocument(id, context, request.orEmpty())
     }
 
     @Operation(
@@ -283,8 +321,9 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody(required = false) request: DocumentStatusActionRequest?,
     ): DocumentResponse {
-        return documentService.submitDocumentForReview(id, context)
+        return documentService.submitDocumentForReview(id, context, request.orEmpty())
     }
 
     @Operation(
@@ -304,8 +343,9 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody request: DocumentStatusActionRequest,
     ): DocumentResponse {
-        return documentService.requestDocumentChanges(id, context)
+        return documentService.requestDocumentChanges(id, context, request)
     }
 
     @Operation(
@@ -325,8 +365,9 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody(required = false) request: DocumentStatusActionRequest?,
     ): DocumentResponse {
-        return documentService.approveDocument(id, context)
+        return documentService.approveDocument(id, context, request.orEmpty())
     }
 
     @Operation(
@@ -346,8 +387,9 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody request: DocumentStatusActionRequest,
     ): DocumentResponse {
-        return documentService.rejectDocument(id, context)
+        return documentService.rejectDocument(id, context, request)
     }
 
     @Operation(
@@ -367,8 +409,9 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody(required = false) request: DocumentStatusActionRequest?,
     ): DocumentResponse {
-        return documentService.signDocument(id, context)
+        return documentService.signDocument(id, context, request.orEmpty())
     }
 
     @Operation(
@@ -388,8 +431,9 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody(required = false) request: DocumentStatusActionRequest?,
     ): DocumentResponse {
-        return documentService.completeDocument(id, context)
+        return documentService.completeDocument(id, context, request.orEmpty())
     }
 
     @Operation(
@@ -409,8 +453,9 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody request: DocumentStatusActionRequest,
     ): DocumentResponse {
-        return documentService.cancelDocument(id, context)
+        return documentService.cancelDocument(id, context, request)
     }
 
     @Operation(
@@ -430,8 +475,31 @@ class DocumentController(
         @CurrentOrganization context: OrganizationContext,
         @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
         @PathVariable id: UUID,
+        @RequestBody(required = false) request: DocumentStatusActionRequest?,
     ): DocumentResponse {
-        return documentService.expireDocument(id, context)
+        return documentService.expireDocument(id, context, request.orEmpty())
+    }
+
+    @Operation(
+        summary = "Назначить ответственного за документ",
+        description = "Назначает ответственным пользователя текущей организации"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Ответственный назначен",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = DocumentResponse::class)
+        )]
+    )
+    @PatchMapping(value = ["/{id}/responsible"])
+    fun assignResponsible(
+        @CurrentOrganization context: OrganizationContext,
+        @Parameter(description = "Идентификатор документа", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: AssignDocumentResponsibleRequest,
+    ): DocumentResponse {
+        return documentService.assignResponsible(id, context, request)
     }
 
     @Operation(
@@ -477,3 +545,6 @@ class DocumentController(
     }
 
 }
+
+private fun DocumentStatusActionRequest?.orEmpty(): DocumentStatusActionRequest =
+    this ?: DocumentStatusActionRequest()

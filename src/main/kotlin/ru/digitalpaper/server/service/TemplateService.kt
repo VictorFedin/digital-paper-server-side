@@ -193,6 +193,7 @@ class TemplateService(
             updatedAt = updatedAt,
             type = type,
             status = status,
+            statusReason = statusReason,
             contentType = contentType,
             responsible = responsibleUser.getShortName(),
             createdBy = createdBy.getShortName()

@@ -12,5 +12,12 @@ data class ChangeDocumentStatusRequest(
         example = "APPROVED",
         requiredMode = Schema.RequiredMode.REQUIRED
     )
-    val status: DocumentStatus?
+    val status: DocumentStatus?,
+
+    @field:Schema(
+        description = "Причина или комментарий к изменению статуса",
+        example = "Документ готов к проверке",
+        nullable = true
+    )
+    val reason: String? = null
 )

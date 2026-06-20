@@ -38,6 +38,9 @@ class Document(
     @Column(name = "status", nullable = false)
     var status: DocumentStatus = DocumentStatus.CREATED,
 
+    @Column(name = "status_reason", columnDefinition = "TEXT")
+    var statusReason: String? = null,
+
     @Column(name = "content_type")
     var contentType: String,
 
