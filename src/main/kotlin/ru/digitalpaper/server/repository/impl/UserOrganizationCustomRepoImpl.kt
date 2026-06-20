@@ -25,10 +25,10 @@ class UserOrganizationCustomRepoImpl(
     override fun getUsersByOrganizationId(
         filter: OrganizationUserListFilter,
         pageable: Pageable
-    ): Page<User> {
+    ): Page<UserOrganization> {
         val cb = entityManager.criteriaBuilder
 
-        val query = cb.createQuery(User::class.java)
+        val query = cb.createQuery(UserOrganization::class.java)
         val root = query.from(UserOrganization::class.java)
         val userJoin = root.join<UserOrganization, User>("user")
 
@@ -39,19 +39,19 @@ class UserOrganizationCustomRepoImpl(
             filter = filter
         )
 
-        query.select(userJoin)
+        query.select(root)
         query.where(*predicates.toTypedArray())
 
         applySorting(cb, query, userJoin, pageable)
 
-        val users = entityManager.createQuery(query)
+        val memberships = entityManager.createQuery(query)
             .setFirstResult(pageable.offset.toInt())
             .setMaxResults(pageable.pageSize)
             .resultList
 
         val total = countUsers(filter)
 
-        return PageImpl(users, pageable, total)
+        return PageImpl(memberships, pageable, total)
     }
 
     private fun buildPredicates(
@@ -119,7 +119,7 @@ class UserOrganizationCustomRepoImpl(
 
     private fun applySorting(
         cb: CriteriaBuilder,
-        query: CriteriaQuery<User>,
+        query: CriteriaQuery<UserOrganization>,
         userJoin: Join<UserOrganization, User>,
         pageable: Pageable
     ) {

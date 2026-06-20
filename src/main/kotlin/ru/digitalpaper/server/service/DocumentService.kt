@@ -481,6 +481,7 @@ class DocumentService(
         DocumentListItem(
             id = id,
             name = name,
+            createdById = createdBy.id,
             createdAt = createdAt,
             status = status,
             responsible = responsibleUser.getShortName(),

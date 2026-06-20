@@ -366,7 +366,7 @@ class OrganizationService(
                 sortField = pageSort,
                 sortDirection = sortDirection.name
             ),
-            list = usersPage.content.map { it.toListItem() }
+            list = usersPage.content.map { it.user.toListItem(it.role) }
         )
     }
 

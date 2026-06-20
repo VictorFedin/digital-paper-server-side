@@ -53,9 +53,10 @@ class User(
     var organizations: MutableSet<UserOrganization> = mutableSetOf()
 ) : UniqueEntity() {
 
-    fun toListItem(): UserListItem =
+    fun toListItem(role: ru.digitalpaper.server.model.user.holder.UserRole? = null): UserListItem =
         UserListItem(
             id = id,
+            role = role,
             email = email,
             firstName = firstName,
             lastName = lastName,

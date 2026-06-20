@@ -1,6 +1,7 @@
 package ru.digitalpaper.server.dto.response.user
 
 import io.swagger.v3.oas.annotations.media.Schema
+import ru.digitalpaper.server.model.user.holder.UserRole
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.util.*
@@ -9,6 +10,9 @@ import java.util.*
 data class UserListItem(
     @field:Schema(description = "Идентификатор пользователя", format = "uuid", example = "550e8400-e29b-41d4-a716-446655440000")
     val id: UUID,
+
+    @field:Schema(description = "Роль пользователя в организации", example = "EMPLOYEE", nullable = true)
+    val role: UserRole? = null,
 
     @field:Schema(description = "Email пользователя", example = "user@example.com", format = "email")
     val email: String,

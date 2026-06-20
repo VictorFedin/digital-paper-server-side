@@ -13,6 +13,9 @@ data class DocumentListItem(
     @field:Schema(description = "Название документа", example = "Договор поставки №42")
     val name: String,
 
+    @field:Schema(description = "Идентификатор автора документа", format = "uuid", example = "550e8400-e29b-41d4-a716-446655440000")
+    val createdById: UUID,
+
     @field:Schema(description = "ФИО ответственного сотрудника", example = "Иванов И.И.")
     val responsible: String,
 
