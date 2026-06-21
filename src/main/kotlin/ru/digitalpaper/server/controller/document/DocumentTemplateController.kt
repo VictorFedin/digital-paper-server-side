@@ -30,6 +30,23 @@ class DocumentTemplateController(
 ) {
 
     @Operation(
+        summary = "Получить список всех шаблонов",
+        description = "Возвращает общий каталог шаблонов, загруженных пользователями разных организаций"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Список шаблонов получен",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = TemplateResponse::class)
+        )]
+    )
+    @GetMapping(value = [""])
+    fun getAllTemplates(): List<TemplateResponse> {
+        return templateService.getAllTemplates()
+    }
+
+    @Operation(
         summary = "Получить шаблон документа",
         description = "Возвращает шаблон текущей организации и список найденных Content Controls или legacy-полей"
     )

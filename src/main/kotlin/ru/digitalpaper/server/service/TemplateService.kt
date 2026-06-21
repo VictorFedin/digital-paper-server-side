@@ -33,6 +33,12 @@ class TemplateService(
     }
 
     @Transactional(readOnly = true)
+    fun getAllTemplates(): List<TemplateResponse> {
+        return templateRepo.findAllSharedTemplates()
+            .map { it.toResponse() }
+    }
+
+    @Transactional(readOnly = true)
     fun getTemplateDetails(
         context: OrganizationContext,
         templateId: UUID,
@@ -142,7 +148,7 @@ class TemplateService(
             name = name,
             organizationId = organization.id,
             createdBy = author.id,
-            fields = fields.map { it.toResponse() },
+            fields = fields.sortedBy { it.sortOrder }.map { it.toResponse() },
             createdAt = createdAt,
             updatedAt = updatedAt
         )
