@@ -480,6 +480,30 @@ class OrganizationController(
     }
 
     @Operation(
+        summary = "Удалить пользователя из организации",
+        description = "Удаляет связь пользователя с организацией. Доступно владельцу или администратору организации"
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "Пользователь удалён из организации",
+        content = [Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = MessageResponse::class)
+        )]
+    )
+    @DeleteMapping(value = ["/{id}/users/{userId}"])
+    fun removeUserFromOrganization(
+        @Parameter(hidden = true)
+        @AuthenticationPrincipal payload: UserPayload,
+        @Parameter(description = "Идентификатор организации", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable id: UUID,
+        @Parameter(description = "Идентификатор пользователя", example = "550e8400-e29b-41d4-a716-446655440001")
+        @PathVariable userId: UUID,
+    ): MessageResponse {
+        return organizationService.removeUserFromOrganization(payload, id, userId)
+    }
+
+    @Operation(
         summary = "Получить список сотрудников организации",
         description = "Возвращает список пользователей организации"
     )

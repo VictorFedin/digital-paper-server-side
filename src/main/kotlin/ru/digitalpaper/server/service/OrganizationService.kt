@@ -268,6 +268,41 @@ class OrganizationService(
     }
 
     @Transactional
+    fun removeUserFromOrganization(
+        payload: UserPayload,
+        organizationId: UUID,
+        targetUserId: UUID
+    ): MessageResponse {
+        val actorMembership = getManageableMembershipOrThrow(payload, organizationId)
+
+        val targetMembership = userOrganizationRepo.findOrganizationUser(
+            organizationId = organizationId,
+            targetUserId = targetUserId
+        ) ?: throw NotFoundException("Пользователь не найден в организации")
+
+        if (targetMembership.role == UserRole.OWNER) {
+            val ownersCount = userOrganizationRepo.countByOrganizationIdAndRole(
+                organizationId = organizationId,
+                role = UserRole.OWNER
+            )
+
+            if (ownersCount <= 1) {
+                throw BadRequestException("Нельзя удалить последнего владельца организации")
+            }
+        }
+
+        if (actorMembership.user.id == targetMembership.user.id && targetMembership.role == UserRole.OWNER) {
+            throw BadRequestException("Владелец не может удалить себя из организации через этот метод")
+        }
+
+        targetMembership.organization.users.remove(targetMembership)
+        targetMembership.user.organizations.remove(targetMembership)
+        userOrganizationRepo.delete(targetMembership)
+
+        return MessageResponse("Пользователь удалён из организации")
+    }
+
+    @Transactional
     fun updateOrganization(
         id: UUID,
         request: UpdateOrganizationRequest,
